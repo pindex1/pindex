@@ -624,11 +624,16 @@
     async function start() {
       $('err').textContent = '';
       try {
-        const me = await call('getMe', userId());
+        // 이 휴대폰에 사용자ID가 없으면 서버에 묻지 않고 바로 이름 등록
+        if (!userId()) { show('register'); $('name').focus(); return; }
+        // 사용자 확인과 기기 정보를 한 번에(서버 왕복 1번)
+        const r = await call('scan', userId(), deviceId);
+        const me = r.me;
         if (me.status === '미등록') { show('register'); $('name').focus(); return; }
         if (me.status !== '승인') { show('stopped'); return; }
         $('who').textContent = me.name + ' 님';
-        ctx = await call('getScanContext', userId(), deviceId);
+        if (r.error) throw new Error(r.error);
+        ctx = r.ctx;
         const last = load(K.last, {});
         sel = {
           group: last.group && groups().includes(last.group) ? last.group : '',
