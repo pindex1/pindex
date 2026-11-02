@@ -194,7 +194,7 @@
       <div class="card"><h2>반납한 기기</h2><ul class="list" id="rdoneList"></ul></div>
       <div id="rdoneFailed"></div>
     </div>
-    <p class="ver">화면 버전 11-02c</p>
+    <p class="ver">화면 버전 11-02d</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -259,7 +259,23 @@
     function show(name) {
       VIEWS.forEach(v => $('v-' + v).classList.toggle('hidden', v !== name));
       window.scrollTo(0, 0);
+      repaint();
     }
+
+    /**
+     * 화면을 강제로 다시 그린다. 웨일은 QR로 새 탭이 열리는 도중에 내용이 바뀌면
+     * 그려 놓고도 화면에 안 보여 주는(흰 화면) 일이 있다 — 여러 창 보기에서는 정상으로 보임.
+     */
+    function repaint() {
+      [0, 300, 1000, 2500].forEach(ms => setTimeout(() => {
+        // transform은 아래 고정 버튼 줄 위치를 흔들어서 opacity로 살짝 바꿨다 되돌린다
+        document.body.style.opacity = '0.99';
+        requestAnimationFrame(() => requestAnimationFrame(() => { document.body.style.opacity = ''; }));
+      }, ms));
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) repaint(); });
+    window.addEventListener('pageshow', repaint);
+    window.addEventListener('focus', repaint);
     function fail(e) {
       $('err').textContent = e.message || String(e);
       $('mainBtn').disabled = false;
