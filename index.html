@@ -76,6 +76,19 @@
     .big-ok { font-size: 22px; font-weight: 700; color: var(--ok); margin-bottom: 8px; }
     .err { color: var(--err); font-size: 14px; margin: 8px 0; white-space: pre-wrap; }
     .hidden { display: none !important; }
+    .row2 { display: flex; gap: 8px; }
+    .row2 #camBtn { flex: 2; }
+    .row2 #subBtn { flex: 1; }
+
+    /* 화면 안 QR 스캐너 */
+    .scanner { position: fixed; inset: 0; z-index: 50; background: #000; }
+    .scanner video { width: 100%; height: 100%; object-fit: cover; }
+    .scanner .frame { position: absolute; left: 50%; top: 42%; width: min(68vw, 300px); aspect-ratio: 1; transform: translate(-50%, -50%);
+      border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .45); }
+    .scanner .bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      color: #fff; text-align: center; }
+    .scanner .bar p { margin: 0 0 12px; font-size: 15px; }
+    .scanner .bar .btn { max-width: 420px; }
   </style>
 </head>
 <body>
@@ -105,7 +118,8 @@
     <!-- QR 없이 들어옴 -->
     <div id="v-home" class="card hidden">
       <h1>기기의 QR을 찍어 주세요</h1>
-      <p class="muted">휴대폰 기본 카메라로 기기에 붙은 QR을 찍으면 대여·반납 화면이 열립니다.</p>
+      <p class="muted">아래 버튼을 누르거나 휴대폰 기본 카메라로 기기에 붙은 QR을 찍으면 대여·반납 화면이 열립니다.</p>
+      <button class="btn" data-cam>📷 QR 찍기</button>
     </div>
 
     <!-- ① 대여 -->
@@ -121,7 +135,7 @@
         <h2 id="cartTitle"></h2>
         <ul class="list" id="cartList"></ul>
       </div>
-      <div class="notice n-info">다음 기기의 QR을 휴대폰 카메라로 찍으면 이 목록에 계속 담깁니다.</div>
+      <div class="notice n-info">아래 <b>📷 다음 기기 QR 찍기</b>를 누르고 다음 기기를 찍으면 이 목록에 계속 담깁니다.</div>
       <div class="card sel"></div>
     </div>
 
@@ -137,6 +151,7 @@
       </div>
       <div id="doneFailed"></div>
       <button class="btn ghost" id="classBtn">우리 반 대여 현황 보기</button>
+      <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
 
     <!-- 학급 대여 현황 -->
@@ -151,7 +166,8 @@
     <div id="v-blocked" class="hidden">
       <div class="card" id="blockedDev"></div>
       <div class="card" id="blockedInfo"></div>
-      <div class="notice n-info">대여할 수 없는 기기입니다. 휴대폰 카메라로 다른 기기의 QR을 찍어 주세요.</div>
+      <div class="notice n-info">대여할 수 없는 기기입니다. 다른 기기의 QR을 찍어 주세요.</div>
+      <button class="btn" data-cam>📷 다른 기기 QR 찍기</button>
       <button class="btn ghost hidden" id="toCartBtn">담기 목록 보기</button>
     </div>
 
@@ -193,15 +209,29 @@
       <div class="card"><ul class="list" id="rdoneSum"></ul></div>
       <div class="card"><h2>반납한 기기</h2><ul class="list" id="rdoneList"></ul></div>
       <div id="rdoneFailed"></div>
+      <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-02e</p>
+    <p class="ver">화면 버전 11-02f</p>
   </div>
 
   <div class="dock hidden" id="dock">
     <div class="inner">
       <div class="sum" id="dockSum"></div>
       <button class="btn" id="mainBtn"></button>
-      <button class="btn ghost" id="subBtn"></button>
+      <div class="row2">
+        <button class="btn ghost hidden" id="camBtn">📷 다음 기기 QR 찍기</button>
+        <button class="btn ghost" id="subBtn"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 화면 안 QR 스캐너(여러 대를 이어서 찍을 때) -->
+  <div class="scanner hidden" id="scanner">
+    <video id="scanVideo" playsinline muted></video>
+    <div class="frame"></div>
+    <div class="bar">
+      <p id="scanMsg"></p>
+      <button class="btn ghost" id="scanClose">닫기</button>
     </div>
   </div>
 
@@ -404,6 +434,7 @@
       const due = dueFor(sel.period);
       const sum = sel.cls ? `${clsLabel(sel.cls)} · ${due.date ? pretty(due.date) + '까지' : '반납일 미정'}` : '반을 골라 주세요';
       $('dock').classList.toggle('hidden', !dockMode);
+      $('camBtn').classList.toggle('hidden', dockMode !== 'cart');
       $('mainBtn').disabled = !sel.cls;
       if (dockMode === 'return') {
         $('dockSum').textContent = rStatus === '파손' ? '수리 접수 후 기기는 수리 상태가 됩니다' : '';
@@ -623,6 +654,7 @@
         const d = ctx.device;
         setCart(getCart().filter(x => x.id !== d.id).concat([{ id: d.id, model: d.model, alias: d.alias, expired: d.expired }]));
         showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
+        openScanner(); // 담고 바로 다음 기기 찍기
       } else if (dockMode === 'cart') {
         if (confirm('담기 목록을 비울까요?')) { setCart([]); showCart(); }
       }
@@ -660,7 +692,131 @@
       return showBlocked();
     }
 
-    async function start() {
+    // ---------- 화면 안 QR 스캐너 ----------
+    // 브라우저 내장 QR 인식(BarcodeDetector)을 쓰고, 없으면 그때만 jsQR을 불러온다(첫 화면 로딩에 영향 없음).
+    const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    let scanStream = null, scanTimer = null, detector = null, jsqrLoading = null;
+    const scanCanvas = document.createElement('canvas');
+
+    function loadJsQR() {
+      if (window.jsQR) return Promise.resolve();
+      return jsqrLoading || (jsqrLoading = new Promise((ok, no) => {
+        const s = document.createElement('script');
+        s.src = JSQR_URL;
+        s.onload = ok;
+        s.onerror = () => { jsqrLoading = null; no(new Error('QR 인식 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.')); };
+        document.head.appendChild(s);
+      }));
+    }
+
+    async function openScanner() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        $('err').textContent = '이 브라우저에서는 화면 안 카메라를 쓸 수 없습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.';
+        return;
+      }
+      $('scanMsg').textContent = '카메라를 켜는 중…';
+      $('scanner').classList.remove('hidden');
+      try {
+        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      } catch (e) {
+        closeScanner();
+        $('err').textContent = e && e.name === 'NotAllowedError'
+          ? '카메라 권한이 막혀 있습니다. 주소창 왼쪽 자물쇠(사이트 설정)에서 카메라를 허용해 주세요.'
+          : '카메라를 켜지 못했습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.';
+        return;
+      }
+      const v = $('scanVideo');
+      v.srcObject = scanStream;
+      try { await v.play(); } catch (e) {}
+      try {
+        if (!detector && 'BarcodeDetector' in window) {
+          const formats = await window.BarcodeDetector.getSupportedFormats();
+          if (formats.indexOf('qr_code') >= 0) detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        }
+        if (!detector) await loadJsQR();
+      } catch (e) {
+        closeScanner();
+        $('err').textContent = e.message;
+        return;
+      }
+      if (!scanStream) return; // 그사이 닫힘
+      $('scanMsg').textContent = '기기의 QR을 네모 안에 맞춰 주세요';
+      scanTick();
+    }
+
+    function closeScanner() {
+      clearTimeout(scanTimer);
+      if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+      scanStream = null;
+      $('scanVideo').srcObject = null;
+      $('scanner').classList.add('hidden');
+      repaint();
+    }
+
+    async function decodeFrame() {
+      const v = $('scanVideo');
+      if (v.readyState < 2 || !v.videoWidth) return null;
+      try {
+        if (detector) {
+          const found = await detector.detect(v);
+          return found.length ? found[0].rawValue : null;
+        }
+        const w = Math.min(640, v.videoWidth);
+        const h = Math.round(v.videoHeight * w / v.videoWidth);
+        scanCanvas.width = w;
+        scanCanvas.height = h;
+        const c2 = scanCanvas.getContext('2d', { willReadFrequently: true });
+        c2.drawImage(v, 0, 0, w, h);
+        const code = window.jsQR(c2.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+        return code ? code.data : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function scanTick() {
+      if (!scanStream) return;
+      decodeFrame().then(text => {
+        if (!scanStream) return;
+        const id = text && idFromQr(text);
+        if (id) return onScanned(id);
+        if (text) $('scanMsg').textContent = id === false ? '다른 학교의 QR입니다.' : 'Pindex 기기 QR이 아닙니다.';
+        scanTimer = setTimeout(scanTick, 150);
+      });
+    }
+
+    /** QR 내용 → 물품고유번호. 다른 학교(s가 다름)면 false, 알 수 없는 QR이면 ''. */
+    function idFromQr(text) {
+      text = String(text).trim();
+      try {
+        const u = new URL(text);
+        const s = u.searchParams.get('s');
+        if (s && s !== S) return false;
+        return u.searchParams.get('id') || '';
+      } catch (e) {
+        return /^[A-Z]\d{6,}$/.test(text) ? text : ''; // 물품고유번호만 들어 있는 QR
+      }
+    }
+
+    function onScanned(id) {
+      if (navigator.vibrate) navigator.vibrate(60);
+      closeScanner();
+      deviceId = id;
+      try { history.replaceState(null, '', '?s=' + encodeURIComponent(S) + '&id=' + encodeURIComponent(id)); } catch (e) {}
+      $('rescan').classList.add('hidden');
+      setDock('');
+      show('loading');
+      start(true);
+    }
+
+    $('camBtn').onclick = openScanner;
+    $('scanClose').onclick = closeScanner;
+    document.addEventListener('click', e => { if (e.target.closest('[data-cam]')) openScanner(); });
+    // 다른 앱으로 나가면 카메라를 끈다
+    document.addEventListener('visibilitychange', () => { if (document.hidden && scanStream) closeScanner(); });
+
+    /** keepSel: 화면 안에서 이어 찍을 때 고른 학급·기간을 그대로 둔다. */
+    async function start(keepSel) {
       $('err').textContent = '';
       try {
         // 이 휴대폰에 사용자ID가 없으면 서버에 묻지 않고 바로 이름 등록
@@ -673,13 +829,15 @@
         $('who').textContent = me.name + ' 님';
         if (r.error) throw new Error(r.error);
         ctx = r.ctx;
-        const last = load(K.last, {});
-        sel = {
-          group: last.group && groups().includes(last.group) ? last.group : '',
-          cls: '',
-          period: last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주'),
-        };
-        if (sel.group && classesOf(sel.group).some(c => c.value === last.cls)) sel.cls = last.cls;
+        if (!keepSel || !sel.period) {
+          const last = load(K.last, {});
+          sel = {
+            group: last.group && groups().includes(last.group) ? last.group : '',
+            cls: '',
+            period: last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주'),
+          };
+          if (sel.group && classesOf(sel.group).some(c => c.value === last.cls)) sel.cls = last.cls;
+        }
         route();
       } catch (e) { show('home'); fail(e); }
     }
