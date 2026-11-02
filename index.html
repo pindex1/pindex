@@ -4,9 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pindex</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <!-- 글꼴은 화면 그리기를 막지 않게 늦게 붙인다(글꼴 서버가 느리거나 막힌 망에서 흰 화면 방지) -->
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <!-- 외부 글꼴은 쓰지 않는다(글꼴 서버가 느리거나 막히면 흰 화면이 됨). 휴대폰 기본 한글 글꼴 사용 -->
   <script>
     // 스크립트 오류가 나도 흰 화면 대신 문구가 보이게
     window.addEventListener('error', function (e) {
@@ -21,7 +19,8 @@
       --warn: #C25E00; --warn-soft: #FBEEDF; --err: #C62828; --err-soft: #FBE9E9;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 'IBM Plex Sans KR', sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 'IBM Plex Sans KR', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif; }
+    .ver { text-align: center; color: #A0A7B4; font-size: 11px; margin-top: 24px; }
     .wrap { max-width: 420px; margin: 0 auto; padding: 16px 16px 120px; }
     .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .brand { font-weight: 700; color: var(--accent); }
@@ -195,6 +194,7 @@
       <div class="card"><h2>반납한 기기</h2><ul class="list" id="rdoneList"></ul></div>
       <div id="rdoneFailed"></div>
     </div>
+    <p class="ver">화면 버전 11-02c</p>
   </div>
 
   <div class="dock hidden" id="dock">
