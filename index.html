@@ -194,7 +194,7 @@
       <div class="card"><h2>반납한 기기</h2><ul class="list" id="rdoneList"></ul></div>
       <div id="rdoneFailed"></div>
     </div>
-    <p class="ver">화면 버전 11-02d</p>
+    <p class="ver">화면 버전 11-02e</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -280,6 +280,13 @@
       $('err').textContent = e.message || String(e);
       $('mainBtn').disabled = false;
       $('registerBtn').disabled = false;
+      if (dockMode) renderDock(); // '처리 중…'이던 버튼 문구를 되돌린다
+    }
+    /** 서버에 기록하는 동안 버튼에 진행 문구를 보여 준다(여러 번 누르지 않게). */
+    function busy(text) {
+      $('mainBtn').disabled = true;
+      $('mainBtn').textContent = text;
+      $('err').textContent = '';
     }
     /** 서버 함수 호출. 쿠키를 보내지 않고(credentials: 'omit'), text/plain이라 CORS 사전 요청도 없다. */
     async function call(fn, ...args) {
@@ -378,7 +385,9 @@
     });
 
     // ---------- 기기 카드 ----------
-    const STATE_BADGE = { '보관 중': 'b-ok', '대여 중': 'b-acc', '수리 중': 'b-warn', '불용': 'b-err' };
+    // '수리 중'은 기기 상태의 예전 이름(서버가 '수리'로 바꿔 보냄)
+    const STATE_BADGE = { '보관 중': 'b-ok', '대여 중': 'b-acc', '수리': 'b-warn', '수리 중': 'b-warn', '불용': 'b-err' };
+    const isRepair = s => s === '수리' || s === '수리 중';
     function devHtml(d) {
       return `<div class="dev"><div>
           <div class="model">${esc(d.alias || d.model || d.kind || '기기')}</div>
@@ -397,7 +406,7 @@
       $('dock').classList.toggle('hidden', !dockMode);
       $('mainBtn').disabled = !sel.cls;
       if (dockMode === 'return') {
-        $('dockSum').textContent = rStatus === '파손' ? '수리 접수 후 기기는 수리 중이 됩니다' : '';
+        $('dockSum').textContent = rStatus === '파손' ? '수리 접수 후 기기는 수리 상태가 됩니다' : '';
         $('mainBtn').textContent = rStatus === '파손' ? '반납하고 수리 접수' : '반납하기';
         $('mainBtn').disabled = false;
         $('subBtn').classList.add('hidden');
@@ -457,7 +466,7 @@
     function showBlocked() {
       const d = ctx.device, r = ctx.repair;
       $('blockedDev').innerHTML = devHtml(d);
-      $('blockedInfo').innerHTML = d.state === '수리 중'
+      $('blockedInfo').innerHTML = isRepair(d.state)
         ? `<h2>고장 신고 내용</h2>${r ? `<dl><dt>증상</dt><dd>${esc(r.symptom || '-')}</dd><dt>처리 상태</dt><dd><span class="badge b-warn">${esc(r.status || '접수')}</span></dd>
             <dt>신고</dt><dd>${esc(r.at)} ${esc(r.reporter)}</dd></dl>` : '<p class="muted">수리 기록이 없습니다.</p>'}`
         : '<h2>불용 기기</h2><p class="muted">불용 처리되어 더 이상 대여하지 않는 기기입니다.</p>';
@@ -584,8 +593,7 @@
         ? [{ loanId: ctx.loan.loanId, status: rStatus, symptom: rStatus === '파손' ? $('symptom').value.trim() : '' }]
         : bundle.filter(b => b.on).map(b => ({ loanId: b.loanId, status: b.status, symptom: b.status === '파손' ? b.symptom.trim() : '' }));
       if (items.some(i => i.status === '파손' && !i.symptom)) { $('err').textContent = '파손·고장 기기는 증상을 적어 주세요.'; return; }
-      $('mainBtn').disabled = true;
-      $('err').textContent = '';
+      busy(items.length > 1 ? `${items.length}대 반납 처리 중…` : '반납 처리 중…');
       try {
         const r = await call('returnDevices', userId(), items);
         const recent = load(K.recent, {});
@@ -599,8 +607,7 @@
       if (dockMode === 'return' || dockMode === 'bundle') return doReturn();
       const ids = dockMode === 'cart' ? getCart().map(d => d.id) : [ctx.device.id];
       const due = dueFor(sel.period).date;
-      $('mainBtn').disabled = true;
-      $('err').textContent = '';
+      busy(ids.length > 1 ? `${ids.length}대 대여 처리 중…` : '대여 처리 중…');
       try {
         const r = await call('rentDevices', userId(), ids, sel.cls, due);
         const recent = load(K.recent, {});
@@ -640,7 +647,7 @@
         setCart(cart.concat([{ id: d.id, model: d.model, alias: d.alias, expired: d.expired }]));
         return showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
       }
-      if (cart.length && (d.state === '수리 중' || d.state === '불용')) {
+      if (cart.length && (isRepair(d.state) || d.state === '불용')) {
         return showCart({ cls: 'n-err', text: `${d.id}은(는) ${d.state}이라 담지 않았습니다.` });
       }
       if (d.state === '대여 중') {
