@@ -211,7 +211,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-02f</p>
+    <p class="ver">화면 버전 11-05a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -717,7 +717,11 @@
       $('scanMsg').textContent = '카메라를 켜는 중…';
       $('scanner').classList.remove('hidden');
       try {
-        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        scanStream = await navigator.mediaDevices.getUserMedia({
+          // 해상도를 안 정하면 640×480으로 켜지는 휴대폰이 많다. 라벨 QR은 작고 촘촘해서(약 2cm에 약 50칸) 그 화질로는 못 읽는다.
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
       } catch (e) {
         closeScanner();
         $('err').textContent = e && e.name === 'NotAllowedError'
@@ -728,6 +732,7 @@
       const v = $('scanVideo');
       v.srcObject = scanStream;
       try { await v.play(); } catch (e) {}
+      await tuneCamera();
       try {
         if (!detector && 'BarcodeDetector' in window) {
           const formats = await window.BarcodeDetector.getSupportedFormats();
@@ -740,8 +745,25 @@
         return;
       }
       if (!scanStream) return; // 그사이 닫힘
-      $('scanMsg').textContent = '기기의 QR을 네모 안에 맞춰 주세요';
+      $('scanMsg').textContent = '기기의 QR을 네모 안에 맞춰 주세요. 흐리면 휴대폰을 조금 떼어 주세요.';
       scanTick();
+    }
+
+    /**
+     * 되는 휴대폰에서만 연속 초점과 2배 줌을 켠다. 줌을 쓰면 작은 QR도 초점이 맞는 거리(15cm쯤)에서 크게 잡힌다.
+     * 지원하지 않거나 실패하면 그대로 둔다.
+     */
+    async function tuneCamera() {
+      const track = scanStream && scanStream.getVideoTracks()[0];
+      if (!track || !track.getCapabilities) return;
+      let caps = {};
+      try { caps = track.getCapabilities() || {}; } catch (e) { return; }
+      if ((caps.focusMode || []).indexOf('continuous') >= 0) {
+        try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+      }
+      if (caps.zoom && caps.zoom.max >= 1.5) {
+        try { await track.applyConstraints({ advanced: [{ zoom: Math.min(2, caps.zoom.max) }] }); } catch (e) {}
+      }
     }
 
     function closeScanner() {
@@ -761,13 +783,17 @@
           const found = await detector.detect(v);
           return found.length ? found[0].rawValue : null;
         }
-        const w = Math.min(640, v.videoWidth);
-        const h = Math.round(v.videoHeight * w / v.videoWidth);
+        // 전체를 줄이면 QR 칸이 뭉개지므로 네모 부근만 잘라 원래 화질에 가깝게 읽는다
+        const vw = v.videoWidth, vh = v.videoHeight;
+        const side = Math.min(vw, vh);
+        const sx = (vw - side) / 2;
+        const sy = Math.max(0, Math.min(vh - side, vh * 0.42 - side / 2)); // 네모의 세로 위치(.frame top 42%)
+        const w = Math.min(960, side);
         scanCanvas.width = w;
-        scanCanvas.height = h;
+        scanCanvas.height = w;
         const c2 = scanCanvas.getContext('2d', { willReadFrequently: true });
-        c2.drawImage(v, 0, 0, w, h);
-        const code = window.jsQR(c2.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+        c2.drawImage(v, sx, sy, side, side, 0, 0, w, w);
+        const code = window.jsQR(c2.getImageData(0, 0, w, w).data, w, w, { inversionAttempts: 'dontInvert' });
         return code ? code.data : null;
       } catch (e) {
         return null;
