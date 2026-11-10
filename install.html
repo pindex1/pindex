@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pindex 설치 안내</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; color: #0F1B2D; background: #fff; font-size: 14px; }
+  .wrap { padding: 16px 16px 0; max-width: 760px; margin: 0 auto; }
+  .head { font-size: 20px; font-weight: 700; margin: 0 0 4px; } .head span { color: #2347E8; }
+  .dots { display: flex; gap: 6px; justify-content: center; margin: 2px 0 12px; }
+  .dots button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #C9CFDA; background: #fff; color: #5B6577; font-size: 12px; cursor: pointer; padding: 0; }
+  .dots button.on { background: #2347E8; border-color: #2347E8; color: #fff; font-weight: 700; }
+  .dots button.done { background: #E8ECFB; border-color: #E8ECFB; color: #2347E8; }
+  .step { display: none; }
+  .step.on { display: block; }
+  h2 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 0 0 8px; line-height: 1.55; }
+  .pic { border: 1px solid #E3E6EC; border-radius: 10px; background: #F4F5F7; padding: 8px; margin: 8px 0; }
+  .pic svg { display: block; width: 100%; height: auto; }
+  .tip { background: #F0F9F3; color: #14532D; border-radius: 8px; padding: 9px 11px; font-size: 13px; line-height: 1.5; margin: 8px 0; }
+  .warn { background: #FFF4E5; color: #7A3E00; border-radius: 8px; padding: 9px 11px; font-size: 13px; line-height: 1.5; margin: 8px 0; }
+  .big { display: inline-block; padding: 12px 20px; background: #2347E8; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; }
+  .nav { position: sticky; bottom: 0; background: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px 0 6px; border-top: 1px solid #E3E6EC; margin-top: 10px; }
+  .nav button { padding: 9px 18px; font-size: 14px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+  .prev { background: #fff; border: 1px solid #C9CFDA; color: #0F1B2D; }
+  .next { background: #2347E8; border: 1px solid #2347E8; color: #fff; font-weight: 700; }
+  .nav .count { color: #5B6577; font-size: 12px; }
+  .hidden { visibility: hidden; }
+  ol { margin: 4px 0 8px; padding-left: 20px; line-height: 1.6; }
+  .small { font-size: 12px; color: #5B6577; }
+  .sub { border-top: 1px dashed #E3E6EC; margin-top: 10px; padding-top: 10px; }
+  .sub h2 { font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="head"><span>Pindex</span> 정보기기 대여 · 설치 안내</p>
+  <p class="small" style="margin-bottom:12px">학교 관리자가 처음 한 번만 합니다. 5분쯤 걸립니다.</p>
+  <div class="dots" id="dots"></div>
+
+  <!-- 1 -->
+  <section class="step">
+    <h2>템플릿 사본 만들기</h2>
+    <p>학교 관리자 구글 계정으로 로그인한 상태에서 아래 버튼을 누르고 <b>사본 만들기</b>를 누릅니다. 사본은 내 드라이브에 저장되고, 이 사본이 우리 학교 전용 Pindex가 됩니다.</p>
+    <p><a class="big" href="https://docs.google.com/spreadsheets/d/19FXQssgz9iIBEJQs1L3Wmvt0NBc8_YenP3e3_2w2MzA/copy" target="_blank" rel="noopener">사본 만들기 화면 열기</a></p>
+    <div class="tip">권한 승인은 설치 중 <b>한 번</b>만 합니다(4단계). 사본의 Pindex 메뉴는 누르지 않아도 됩니다.</div>
+    <div class="warn">브라우저에 구글 계정이 여러 개 로그인되어 있으면 나중에 화면이 안 열릴 수 있습니다. 관리자 계정 하나만 로그인된 크롬 프로필이나 시크릿 창에서 진행하세요.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step">
+    <h2>확장 프로그램 › Apps Script</h2>
+    <p>만든 사본(구글 시트) 위쪽 메뉴에서 <b>확장 프로그램</b>을 누르고 <b>Apps Script</b>를 누릅니다. 새 탭에 편집기가 열립니다. 코드가 보여도 고칠 필요는 없습니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 210" font-family="sans-serif">
+        <rect x="0" y="0" width="640" height="210" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <rect x="16" y="12" width="22" height="26" rx="3" fill="#0F9D58"/>
+        <text x="48" y="24" font-size="13" fill="#202124">Pindex의 사본</text>
+        <text x="48" y="44" font-size="12" fill="#3C4043">파일   수정   보기   삽입   서식   데이터   도구</text>
+        <text x="352" y="44" font-size="12" fill="#202124" font-weight="bold">확장 프로그램</text>
+        <text x="448" y="44" font-size="12" fill="#3C4043">도움말   Pindex</text>
+        <rect x="344" y="28" width="94" height="24" rx="5" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="330" cy="40" r="12" fill="#E5484D"/><text x="330" y="45" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="344" y="58" width="190" height="110" rx="6" fill="#fff" stroke="#D5DAE3"/>
+        <text x="362" y="84" font-size="13" fill="#3C4043">부가기능 ›</text>
+        <text x="362" y="110" font-size="13" fill="#3C4043">매크로 ›</text>
+        <rect x="345" y="122" width="188" height="30" fill="#E8F0FE"/>
+        <text x="362" y="142" font-size="13" fill="#202124" font-weight="bold">Apps Script</text>
+        <rect x="340" y="119" width="198" height="36" rx="6" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="552" cy="137" r="12" fill="#E5484D"/><text x="552" y="142" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+        <rect x="16" y="70" width="300" height="10" rx="3" fill="#E8EAED"/>
+        <rect x="16" y="92" width="260" height="10" rx="3" fill="#E8EAED"/>
+        <rect x="16" y="114" width="280" height="10" rx="3" fill="#E8EAED"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step">
+    <h2>오른쪽 위 파란 [배포] → [새 배포]</h2>
+    <p>편집기 오른쪽 위의 파란 <b>배포</b> 버튼을 누르고, 펼쳐진 메뉴에서 <b>새 배포</b>를 누릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 230" font-family="sans-serif">
+        <rect x="0" y="0" width="640" height="230" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <line x1="0" y1="44" x2="640" y2="44" stroke="#E3E6EC"/>
+        <rect x="16" y="13" width="18" height="18" rx="4" fill="#4285F4"/>
+        <text x="44" y="27" font-size="14" fill="#3C4043">Apps Script</text>
+        <text x="140" y="27" font-size="14" fill="#202124" font-weight="bold">Pindex</text>
+        <rect x="532" y="9" width="90" height="28" rx="5" fill="#1A73E8"/>
+        <text x="565" y="28" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">배포</text>
+        <text x="605" y="28" font-size="11" fill="#fff" text-anchor="middle">▼</text>
+        <rect x="527" y="4" width="100" height="38" rx="8" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="516" cy="23" r="12" fill="#E5484D"/><text x="516" y="28" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="452" y="50" width="170" height="114" rx="6" fill="#fff" stroke="#D5DAE3"/>
+        <rect x="453" y="58" width="168" height="32" fill="#E8F0FE"/>
+        <text x="470" y="79" font-size="13" fill="#202124" font-weight="bold">새 배포</text>
+        <text x="470" y="113" font-size="13" fill="#3C4043">배포 테스트</text>
+        <text x="470" y="145" font-size="13" fill="#3C4043">배포 관리</text>
+        <rect x="449" y="55" width="176" height="38" rx="6" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="436" cy="74" r="12" fill="#E5484D"/><text x="436" y="79" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+        <rect x="170" y="64" width="220" height="10" rx="3" fill="#E8EAED"/>
+        <rect x="170" y="86" width="240" height="10" rx="3" fill="#E8EAED"/>
+        <rect x="170" y="108" width="180" height="10" rx="3" fill="#E8EAED"/>
+      </svg>
+    </div>
+    <div class="warn"><b>배포 관리</b>가 아니라 <b>새 배포</b>입니다. 처음 한 번만 새 배포를 만듭니다.</div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step">
+    <h2>톱니바퀴 → [웹 앱]</h2>
+    <p>'새 배포' 창 왼쪽 위 <b>유형 선택</b> 옆의 <b>톱니바퀴</b>를 누르고, 목록에서 <b>웹 앱</b>을 고릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 240" font-family="sans-serif">
+        <rect x="40" y="10" width="560" height="220" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="64" y="44" font-size="16" fill="#202124" font-weight="bold">새 배포</text>
+        <line x1="40" y1="60" x2="600" y2="60" stroke="#E3E6EC"/>
+        <line x1="250" y1="60" x2="250" y2="230" stroke="#E3E6EC"/>
+        <text x="64" y="92" font-size="13" fill="#3C4043">유형 선택</text>
+        <circle cx="200" cy="88" r="11" fill="none" stroke="#5F6368" stroke-width="2"/>
+        <circle cx="200" cy="88" r="4" fill="#5F6368"/>
+        <circle cx="200" cy="88" r="18" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="232" cy="72" r="12" fill="#E5484D"/><text x="232" y="77" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="70" y="112" width="160" height="108" rx="6" fill="#fff" stroke="#D5DAE3"/>
+        <rect x="71" y="118" width="158" height="26" fill="#E8F0FE"/>
+        <text x="86" y="136" font-size="13" fill="#202124" font-weight="bold">웹 앱</text>
+        <text x="86" y="162" font-size="13" fill="#3C4043">API 실행 파일</text>
+        <text x="86" y="186" font-size="13" fill="#3C4043">부가기능</text>
+        <text x="86" y="210" font-size="13" fill="#3C4043">라이브러리</text>
+        <rect x="66" y="114" width="168" height="34" rx="6" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="52" cy="131" r="12" fill="#E5484D"/><text x="52" y="136" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+        <text x="425" y="140" font-size="13" fill="#9AA0A6" text-anchor="middle">유형을 고르면 오른쪽에</text>
+        <text x="425" y="160" font-size="13" fill="#9AA0A6" text-anchor="middle">설정 칸이 나타납니다</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="step">
+    <h2>아무것도 바꾸지 말고 [배포]</h2>
+    <p>오른쪽 설정은 이미 맞게 채워져 있습니다(실행: <b>나</b>, 액세스: <b>모든 사용자</b>). 그대로 오른쪽 아래 <b>배포</b>를 누릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 250" font-family="sans-serif">
+        <rect x="40" y="6" width="560" height="238" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="64" y="38" font-size="16" fill="#202124" font-weight="bold">새 배포</text>
+        <line x1="40" y1="52" x2="600" y2="52" stroke="#E3E6EC"/>
+        <text x="64" y="80" font-size="12" fill="#5F6368">설명</text>
+        <rect x="64" y="86" width="500" height="26" rx="4" fill="#fff" stroke="#DADCE0"/>
+        <text x="64" y="134" font-size="12" fill="#5F6368">다음 사용자 인증 정보로 실행</text>
+        <rect x="64" y="140" width="240" height="28" rx="4" fill="#fff" stroke="#DADCE0"/>
+        <text x="76" y="159" font-size="13" fill="#202124">나 (선생님 계정)</text>
+        <text x="290" y="159" font-size="10" fill="#5F6368" text-anchor="end">▼</text>
+        <rect x="59" y="136" width="250" height="36" rx="6" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="46" cy="154" r="11" fill="#E5484D"/><text x="46" y="159" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <text x="330" y="134" font-size="12" fill="#5F6368">액세스 권한이 있는 사용자</text>
+        <rect x="330" y="140" width="234" height="28" rx="4" fill="#fff" stroke="#DADCE0"/>
+        <text x="342" y="159" font-size="13" fill="#202124">모든 사용자</text>
+        <text x="550" y="159" font-size="10" fill="#5F6368" text-anchor="end">▼</text>
+        <rect x="325" y="136" width="244" height="36" rx="6" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="584" cy="122" r="11" fill="#E5484D"/><text x="584" y="127" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+        <rect x="408" y="200" width="70" height="30" rx="5" fill="#fff" stroke="#DADCE0"/>
+        <text x="443" y="220" font-size="13" fill="#1A73E8" text-anchor="middle">취소</text>
+        <rect x="490" y="200" width="74" height="30" rx="5" fill="#1A73E8"/>
+        <text x="527" y="220" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">배포</text>
+        <rect x="485" y="195" width="84" height="40" rx="7" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="584" cy="215" r="11" fill="#E5484D"/><text x="584" y="220" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">3</text>
+      </svg>
+    </div>
+    <div class="warn">혹시 다르게 되어 있으면 위 그림처럼 바꿔 주세요. 'Google 계정이 있는 모든 사용자'나 '나만'이면 선생님들 휴대폰에서 QR이 열리지 않습니다.</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step">
+    <h2>권한 승인 (설치 중 한 번뿐)</h2>
+    <p>배포를 누르면 권한 승인을 묻습니다. 아래 세 화면을 차례로 지나면 됩니다.</p>
+    <div class="sub">
+    <h2>① [액세스 승인] → 내 계정 고르기</h2>
+    <p>'데이터 액세스 권한을 부여해야 합니다'라는 안내가 나오면 <b>액세스 승인</b>을 누르고, 새 창에서 <b>이 시트를 가진 내 계정</b>을 고릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 210" font-family="sans-serif">
+        <rect x="20" y="10" width="290" height="190" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="40" y="42" font-size="15" fill="#202124" font-weight="bold">새 배포</text>
+        <text x="40" y="76" font-size="12" fill="#3C4043">웹 앱을 배포하려면 데이터에 대한</text>
+        <text x="40" y="94" font-size="12" fill="#3C4043">액세스 권한을 부여해야 합니다.</text>
+        <rect x="40" y="114" width="110" height="32" rx="5" fill="#1A73E8"/>
+        <text x="95" y="135" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">액세스 승인</text>
+        <rect x="35" y="109" width="120" height="42" rx="7" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="172" cy="130" r="11" fill="#E5484D"/><text x="172" y="135" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="330" y="10" width="290" height="190" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="350" y="42" font-size="15" fill="#202124" font-weight="bold">계정 선택</text>
+        <circle cx="366" cy="88" r="14" fill="#2347E8"/><text x="366" y="93" font-size="13" fill="#fff" text-anchor="middle">나</text>
+        <text x="390" y="85" font-size="13" fill="#202124">선생님 이름</text>
+        <text x="390" y="102" font-size="11" fill="#5F6368">시트 소유자 계정</text>
+        <rect x="344" y="66" width="262" height="46" rx="7" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="600" cy="62" r="11" fill="#E5484D"/><text x="600" y="67" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+        <circle cx="366" cy="140" r="14" fill="#C9CFDA"/>
+        <text x="390" y="144" font-size="13" fill="#9AA0A6">다른 계정</text>
+      </svg>
+    </div>
+    </div>
+    <div class="sub">
+    <h2>② "확인하지 않은 앱" 경고가 나와도 괜찮습니다</h2>
+    <p>왼쪽 아래 작은 글씨 <b>고급</b>을 누르고, 맨 아래 <b>…(으)로 이동(안전하지 않음)</b>을 누릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 230" font-family="sans-serif">
+        <rect x="80" y="8" width="480" height="214" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="110" y="44" font-size="16" fill="#202124" font-weight="bold">Google에서 확인하지 않은 앱</text>
+        <rect x="110" y="58" width="300" height="9" rx="3" fill="#E8EAED"/>
+        <rect x="110" y="74" width="260" height="9" rx="3" fill="#E8EAED"/>
+        <text x="110" y="118" font-size="13" fill="#5F6368" text-decoration="underline">고급</text>
+        <rect x="102" y="101" width="46" height="26" rx="5" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="92" cy="114" r="11" fill="#E5484D"/><text x="92" y="119" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="438" y="100" width="100" height="30" rx="5" fill="#1A73E8"/>
+        <text x="488" y="120" font-size="12" fill="#fff" text-anchor="middle">안전한 페이지로…</text>
+        <line x1="110" y1="146" x2="530" y2="146" stroke="#E3E6EC"/>
+        <rect x="110" y="158" width="330" height="9" rx="3" fill="#E8EAED"/>
+        <text x="110" y="198" font-size="13" fill="#5F6368" text-decoration="underline">Pindex(으)로 이동(안전하지 않음)</text>
+        <rect x="102" y="181" width="232" height="26" rx="5" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="92" cy="194" r="11" fill="#E5484D"/><text x="92" y="199" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+      </svg>
+    </div>
+    <div class="tip"><b>왜 이런 경고가 나오나요?</b> 이 앱은 선생님이 방금 사본으로 만든, 구글의 심사를 받지 않은 앱이라서 누구에게나 이 경고가 나옵니다.
+      Pindex는 선생님 계정의 권한으로만 돌아가고, 대여 기록은 이 시트에만 저장되며 다른 서버에 따로 모아 두지 않습니다.</div>
+    <p class="small">'안전한 페이지로 돌아가기'를 누르면 처음부터 다시 해야 합니다.</p>
+    </div>
+    <div class="sub">
+    <h2>③ 권한 확인 → [허용]</h2>
+    <p>Pindex가 쓸 권한 목록이 나옵니다. 아래로 내려 <b>허용</b>(또는 계속)을 누릅니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 220" font-family="sans-serif">
+        <rect x="120" y="8" width="400" height="204" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="146" y="42" font-size="14" fill="#202124" font-weight="bold">Pindex에서 내 Google 계정에</text>
+        <text x="146" y="62" font-size="14" fill="#202124" font-weight="bold">액세스하려고 합니다</text>
+        <rect x="146" y="80" width="14" height="14" rx="2" fill="#1A73E8"/><text x="153" y="91" font-size="11" fill="#fff" text-anchor="middle">✓</text>
+        <text x="170" y="92" font-size="12" fill="#3C4043">모두 선택</text>
+        <rect x="140" y="74" width="92" height="26" rx="5" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="128" cy="87" r="11" fill="#E5484D"/><text x="128" y="92" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="146" y="112" width="280" height="9" rx="3" fill="#E8EAED"/>
+        <rect x="146" y="132" width="240" height="9" rx="3" fill="#E8EAED"/>
+        <rect x="320" y="166" width="70" height="30" rx="5" fill="#fff" stroke="#DADCE0"/>
+        <text x="355" y="186" font-size="13" fill="#1A73E8" text-anchor="middle">취소</text>
+        <rect x="400" y="166" width="90" height="30" rx="5" fill="#1A73E8"/>
+        <text x="445" y="186" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">허용</text>
+        <rect x="395" y="161" width="100" height="40" rx="7" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="508" cy="181" r="11" fill="#E5484D"/><text x="508" y="186" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">2</text>
+      </svg>
+    </div>
+    <div class="warn">권한마다 체크 상자가 보이면 <b>모두 선택</b>을 체크해 주세요. 하나라도 빠지면 일부 기능이 동작하지 않습니다.</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="step">
+    <h2>웹 앱 URL을 열면 끝</h2>
+    <p>배포가 끝나면 나오는 창에서 <b>웹 앱 URL</b> 아래 <b>복사</b>를 누르고, 새 탭 주소창에 붙여 넣어 엽니다. 처음 한 번은 시트를 준비하느라 몇 초 걸리고, 현황판이 보이면 끝입니다.</p>
+    <div class="pic">
+      <svg viewBox="0 0 640 200" font-family="sans-serif">
+        <rect x="60" y="8" width="520" height="184" rx="8" fill="#fff" stroke="#D5DAE3"/>
+        <text x="86" y="42" font-size="15" fill="#202124" font-weight="bold">새 배포</text>
+        <text x="86" y="72" font-size="12" fill="#5F6368">배포 ID</text>
+        <rect x="86" y="78" width="400" height="9" rx="3" fill="#E8EAED"/>
+        <text x="86" y="114" font-size="12" fill="#5F6368">웹 앱 URL</text>
+        <text x="86" y="134" font-size="12" fill="#1A73E8">https://script.google.com/macros/s/AKfy…/exec</text>
+        <text x="86" y="164" font-size="13" fill="#1A73E8" font-weight="bold">복사</text>
+        <rect x="78" y="147" width="48" height="26" rx="5" fill="none" stroke="#E5484D" stroke-width="3"/>
+        <circle cx="66" cy="160" r="11" fill="#E5484D"/><text x="66" y="165" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">1</text>
+        <rect x="486" y="148" width="70" height="30" rx="5" fill="#1A73E8"/>
+        <text x="521" y="168" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">완료</text>
+      </svg>
+    </div>
+    <div class="tip">주소를 따로 적어 둘 필요는 없습니다. 한 번 열면 시트 맨 앞 <b>시작</b> 탭에 <b>▶ 관리자 화면 열기</b> 링크가 생기고, 메뉴 <b>Pindex › 관리자 화면 열기</b>로도 열 수 있습니다.<br>
+      다음 순서: <b>설정</b>(학교명·학급) → <b>물품 등록</b> → <b>QR 인쇄</b></div>
+    <div class="warn">나중에 다시 배포할 때는 <b>배포 관리</b>에서 기존 배포를 수정하세요. 새 배포를 또 만들면 주소가 바뀌어 붙여 둔 QR이 열리지 않습니다.</div>
+    
+  </section>
+
+  <p class="small" style="text-align:center;margin:6px 0 0">버튼 이름과 모양은 구글 화면 변경에 따라 조금 다를 수 있습니다.</p>
+
+  <div class="nav">
+    <button class="prev" id="prev">← 이전</button>
+    <span class="count" id="count"></span>
+    <button class="next" id="next">다음 →</button>
+  </div>
+</div>
+<script>
+  var steps = document.querySelectorAll('.step');
+  var dots = document.getElementById('dots');
+  var cur = 0;
+  for (var i = 0; i < steps.length; i++) {
+    var b = document.createElement('button');
+    b.textContent = i + 1;
+    b.onclick = (function (n) { return function () { go(n); }; })(i);
+    dots.appendChild(b);
+  }
+  function go(n) {
+    cur = Math.max(0, Math.min(steps.length - 1, n));
+    for (var i = 0; i < steps.length; i++) {
+      steps[i].classList.toggle('on', i === cur);
+      dots.children[i].className = i === cur ? 'on' : (i < cur ? 'done' : '');
+    }
+    document.getElementById('prev').classList.toggle('hidden', cur === 0);
+    var last = cur === steps.length - 1;
+    document.getElementById('next').textContent = last ? '처음으로' : '다음 →';
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + steps.length;
+    window.scrollTo(0, 0);
+  }
+  document.getElementById('prev').onclick = function () { go(cur - 1); };
+  document.getElementById('next').onclick = function () {
+    go(cur === steps.length - 1 ? 0 : cur + 1);
+  };
+  go(0);
+</script>
+</body>
+</html>
