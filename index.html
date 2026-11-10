@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pindex</title>
+  <title>정보기기 대여</title>
   <!-- 외부 글꼴은 쓰지 않는다(글꼴 서버가 느리거나 막히면 흰 화면이 됨). 휴대폰 기본 한글 글꼴 사용 -->
   <script>
     // 스크립트 오류가 나도 흰 화면 대신 문구가 보이게
@@ -23,8 +23,11 @@
     .ver { text-align: center; color: #A0A7B4; font-size: 11px; margin-top: 24px; }
     .wrap { max-width: 420px; margin: 0 auto; padding: 16px 16px 120px; }
     .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .brand { font-weight: 700; color: var(--accent); }
-    .who { font-size: 13px; color: var(--muted); }
+    /* 학교명이 길면 학교명만 줄이고 '› 대여'는 남긴다 */
+    .brand { font-weight: 700; color: var(--accent); min-width: 0; display: flex; white-space: nowrap; }
+    .brand #brandName { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .brand .crumb { color: var(--ink); flex-shrink: 0; white-space: pre; }
+    .who { font-size: 13px; color: var(--muted); flex-shrink: 0; margin-left: 8px; }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
     h1 { font-size: 20px; margin: 0 0 8px; }
     h2 { font-size: 15px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
@@ -93,7 +96,7 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="top"><span class="brand">Pindex</span><span class="who" id="who"></span></div>
+    <div class="top"><span class="brand"><span id="brandName">정보기기</span><span class="crumb" id="brandSub"></span></span><span class="who" id="who"></span></div>
     <div id="rescan" class="notice n-warn hidden"></div>
     <div id="err" class="err"></div>
 
@@ -211,7 +214,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-05a</p>
+    <p class="ver">화면 버전 11-10a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -256,7 +259,11 @@
     })();
     const API = S ? `https://script.google.com/macros/s/${S}/exec` : '';
     // 학교(배포)마다 따로 저장
-    const K = { user: `pindex.${S}.userId`, cart: `pindex.${S}.cart`, last: `pindex.${S}.last`, recent: `pindex.${S}.recent` };
+    const K = { user: `pindex.${S}.userId`, cart: `pindex.${S}.cart`, last: `pindex.${S}.last`, recent: `pindex.${S}.recent`, brand: `pindex.${S}.brand` };
+    // 위쪽 제목: '봉명초 정보기기 › 대여'. 학교명은 서버(scan)가 알려 주고, 다음에 열 때 바로 보이도록 휴대폰에 기억한다.
+    const VIEW_TITLES = { register: '이름 등록', stopped: '사용 중지', rent: '대여', cart: '담기 목록', done: '대여 완료',
+      class: '우리 반 대여 현황', blocked: '대여 불가', return: '반납', bundle: '함께 반납', rdone: '반납 완료' };
+    let brand = load(K.brand, '정보기기'), viewName = 'loading';
     const CART_TTL = 3 * 60 * 60 * 1000;
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
     const VIEWS = ['loading', 'register', 'stopped', 'home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone'];
@@ -286,7 +293,17 @@
     let rStatus = '정상';   // ⑤ 한 대 반납 상태
     let bundle = [];        // ⑥ [{ loanId, deviceId, model, on, status, symptom }]
 
+    function setBrand(b) {
+      if (b) { brand = b; save(K.brand, b); }
+      const sub = VIEW_TITLES[viewName] || '';
+      $('brandName').textContent = brand;
+      $('brandSub').textContent = sub ? ' › ' + sub : '';
+      document.title = (sub ? sub + ' · ' : '') + brand;
+    }
+
     function show(name) {
+      viewName = name;
+      setBrand();
       VIEWS.forEach(v => $('v-' + v).classList.toggle('hidden', v !== name));
       window.scrollTo(0, 0);
       repaint();
@@ -806,7 +823,7 @@
         if (!scanStream) return;
         const id = text && idFromQr(text);
         if (id) return onScanned(id);
-        if (text) $('scanMsg').textContent = id === false ? '다른 학교의 QR입니다.' : 'Pindex 기기 QR이 아닙니다.';
+        if (text) $('scanMsg').textContent = id === false ? '다른 학교의 QR입니다.' : '정보기기 대여용 QR이 아닙니다.';
         scanTimer = setTimeout(scanTick, 150);
       });
     }
@@ -849,6 +866,7 @@
         if (!userId()) { show('register'); $('name').focus(); return; }
         // 사용자 확인과 기기 정보를 한 번에(서버 왕복 1번)
         const r = await call('scan', userId(), deviceId);
+        if (r.brand) setBrand(r.brand); // 예전 서버(다른 학교의 옛 사본)는 brand가 없다 → 기억한 이름 그대로
         const me = r.me;
         if (me.status === '미등록') { show('register'); $('name').focus(); return; }
         if (me.status !== '승인') { show('stopped'); return; }
