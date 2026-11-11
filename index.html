@@ -62,6 +62,14 @@
     .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
     .chip { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 15px; }
     .chip.on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+    /* 학년(위) → 반(아래): 반은 고른 학년 아래 들여 쓴 연한 상자에, 고르면 파란색 — 위아래 단계가 한눈에 구분되게 */
+    .lv { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+    .classes { position: relative; background: var(--accent-soft); border-radius: 12px; padding: 10px 10px 4px; margin: -4px 0 14px; }
+    .classes::before { content: ''; position: absolute; top: -7px; left: var(--tip, 24px); border: 7px solid transparent; border-top: 0; border-bottom-color: var(--accent-soft); }
+    .classes .lv { color: var(--accent); font-weight: 600; }
+    .classes .chips { margin-bottom: 6px; }
+    .classes .chip { border-color: #C9D3FA; min-width: 56px; }
+    .classes .chip.on { background: var(--accent); border-color: var(--accent); }
     .due { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 
     .notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; }
@@ -214,7 +222,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-10a</p>
+    <p class="ver">화면 버전 11-12a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -306,6 +314,7 @@
       setBrand();
       VIEWS.forEach(v => $('v-' + v).classList.toggle('hidden', v !== name));
       window.scrollTo(0, 0);
+      aimTips();
       repaint();
     }
 
@@ -410,15 +419,31 @@
     function selHtml() {
       const gs = groups();
       const due = dueFor(sel.period);
+      const gName = g => (g === '유치원' || g === '기타' ? g : g + '학년');
+      const subLabel = sel.group === '유치원' ? '유치원 반 고르기' : sel.group === '기타' ? '대여처 고르기' : `${gName(sel.group)} › 반 고르기`;
       return `<h2>어느 반이 빌리나요?</h2>
-        <div class="chips">${gs.map(g => `<button class="chip ${g === sel.group ? 'on' : ''}" data-group="${esc(g)}">${g === '유치원' || g === '기타' ? g : g + '학년'}</button>`).join('')}</div>
-        ${sel.group ? `<div class="chips">${classesOf(sel.group).map(c => `<button class="chip ${c.value === sel.cls ? 'on' : ''}" data-cls="${esc(c.value)}">${esc(c.label)}</button>`).join('')}</div>` : ''}
+        <p class="lv">${gs.length > 1 ? '① 학년' : ''}</p>
+        <div class="chips grades">${gs.map(g => `<button class="chip ${g === sel.group ? 'on' : ''}" data-group="${esc(g)}">${gName(g)}</button>`).join('')}</div>
+        ${sel.group ? `<div class="classes"><p class="lv">② ${esc(subLabel)}</p>
+          <div class="chips">${classesOf(sel.group).map(c => `<button class="chip ${c.value === sel.cls ? 'on' : ''}" data-cls="${esc(c.value)}">${esc(c.label)}</button>`).join('')}</div></div>` : ''}
         <h2 style="margin-top:4px">언제까지 쓰나요?</h2>
         <div class="chips">${Object.keys(PERIODS).map(p => `<button class="chip ${p === sel.period ? 'on' : ''}" data-period="${p}">${p}</button>`).join('')}</div>
         <div class="due">${due.date ? `반납예정 ${pretty(due.date)}` : '반납예정일 없음(미정)'}
           ${due.note ? `<span class="badge b-warn">${esc(due.note)}</span>` : ''}</div>`;
     }
-    function renderSel() { document.querySelectorAll('.sel').forEach(el => { el.innerHTML = selHtml(); }); }
+    function renderSel() {
+      document.querySelectorAll('.sel').forEach(el => { el.innerHTML = selHtml(); });
+      aimTips();
+    }
+    /** 반 상자의 꼭지가 고른 학년 버튼 아래를 가리키게. 숨은 화면은 크기가 0이라 화면을 보일 때(show) 다시 부른다. */
+    function aimTips() {
+      document.querySelectorAll('.sel').forEach(el => {
+        const on = el.querySelector('.grades .chip.on'), box = el.querySelector('.classes');
+        if (!on || !box || !on.offsetWidth) return;
+        const a = on.getBoundingClientRect(), b = box.getBoundingClientRect();
+        box.style.setProperty('--tip', Math.max(12, a.left - b.left + a.width / 2 - 7) + 'px');
+      });
+    }
 
     document.addEventListener('click', e => {
       const b = e.target.closest('.sel .chip');
