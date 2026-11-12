@@ -222,7 +222,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-12a</p>
+    <p class="ver">화면 버전 11-12b</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -466,8 +466,8 @@
           <div class="id">${esc(d.id)}</div></div>
           <span class="badge ${STATE_BADGE[d.state] || ''}">${esc(d.state)}</span></div>
         <div class="tags">${d.kind ? `<span class="badge b-acc">${esc(d.kind)}</span>` : ''}
-          ${d.expired ? `<span class="badge b-warn">내용연수 경과</span>` : ''}
           ${d.place ? `<span class="badge">${esc(d.place)}</span>` : ''}</div>`;
+      // 내용연수 경과는 관리자용 정보라 교사 화면에서는 뺐다(2026-11-12 — 고장으로 오해할 수 있음). 관리자 화면에는 그대로.
     }
 
     // ---------- 하단 버튼 ----------
@@ -522,7 +522,7 @@
       const items = getCart();
       $('cartNotice').innerHTML = notice ? `<div class="notice ${notice.cls}">${esc(notice.text)}</div>` : '';
       $('cartTitle').textContent = `담기 목록 ${items.length}대`;
-      $('cartList').innerHTML = items.length ? items.map(d => `<li><div><div>${esc(d.alias || d.model)}${d.expired ? ' <span class="badge b-warn">경과</span>' : ''}</div>
+      $('cartList').innerHTML = items.length ? items.map(d => `<li><div><div>${esc(d.alias || d.model)}</div>
           <div class="id">${esc(d.id)}</div></div><button class="x" data-remove="${esc(d.id)}">빼기</button></li>`).join('')
         : '<li class="muted">담긴 기기가 없습니다.</li>';
       renderSel();
@@ -694,7 +694,7 @@
     $('subBtn').onclick = () => {
       if (dockMode === 'rent') {
         const d = ctx.device;
-        setCart(getCart().filter(x => x.id !== d.id).concat([{ id: d.id, model: d.model, alias: d.alias, expired: d.expired }]));
+        setCart(getCart().filter(x => x.id !== d.id).concat([{ id: d.id, model: d.model, alias: d.alias }]));
         showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
         openScanner(); // 담고 바로 다음 기기 찍기
       } else if (dockMode === 'cart') {
@@ -718,7 +718,7 @@
       if (d.state === '보관 중') {
         if (!cart.length) return showRent();
         if (cart.some(x => x.id === d.id)) return showCart({ cls: 'n-warn', text: `${d.alias || d.model}은(는) 이미 담겨 있습니다.` });
-        setCart(cart.concat([{ id: d.id, model: d.model, alias: d.alias, expired: d.expired }]));
+        setCart(cart.concat([{ id: d.id, model: d.model, alias: d.alias }]));
         return showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
       }
       if (cart.length && (isRepair(d.state) || d.state === '불용')) {
