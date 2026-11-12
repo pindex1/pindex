@@ -28,6 +28,13 @@
     .brand #brandName { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .brand .crumb { color: var(--ink); flex-shrink: 0; white-space: pre; }
     .who { font-size: 13px; color: var(--muted); flex-shrink: 0; margin-left: 8px; }
+    /* 이름을 누르면 내 정보(이름·우리 반) */
+    button.who { border: 0; background: none; padding: 4px 0; font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+    button.who:empty { display: none; }
+    /* 대여 화면: 학급이 골라져 있으면 요약 한 줄 */
+    .selsum { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .selsum .sumcls { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+    .selsum .chip { flex-shrink: 0; }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
     h1 { font-size: 20px; margin: 0 0 8px; }
     h2 { font-size: 15px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
@@ -104,7 +111,7 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="top"><span class="brand"><span id="brandName">정보기기</span><span class="crumb" id="brandSub"></span></span><span class="who" id="who"></span></div>
+    <div class="top"><span class="brand"><span id="brandName">정보기기</span><span class="crumb" id="brandSub"></span></span><button class="who" id="who" title="내 정보(이름·우리 반)"></button></div>
     <div id="rescan" class="notice n-warn hidden"></div>
     <div id="err" class="err"></div>
 
@@ -114,9 +121,21 @@
     <div id="v-register" class="card hidden">
       <h1>처음 사용하시나요?</h1>
       <p class="muted">이름을 한 번만 등록하면 이 휴대폰으로 바로 대여·반납할 수 있습니다. 기록에 이 이름이 남습니다.</p>
-      <label for="name">이름 (예: 6-2 김하늘)</label>
+      <label for="name">이름 (예: 김하늘)</label>
       <input id="name" maxlength="30" autocomplete="name">
       <button class="btn" id="registerBtn">등록하고 시작</button>
+    </div>
+
+    <!-- 내 정보(이름·우리 반). 처음 등록한 뒤 한 번은 '우리 반을 골라 주세요'로 나온다 -->
+    <div id="v-me" class="card hidden">
+      <h1 id="meTitle">내 정보</h1>
+      <p class="muted" id="meSub"></p>
+      <label for="meName">이름</label>
+      <input id="meName" maxlength="30" autocomplete="name">
+      <h2>우리 반 <span class="muted" style="font-weight:400">(담임 학급 — 대여할 때 미리 골라져 나옵니다)</span></h2>
+      <div class="mesel"></div>
+      <button class="btn" id="meSave" style="margin-top:12px">저장</button>
+      <button class="btn ghost" id="meCancel">취소</button>
     </div>
 
     <!-- 사용 중지(관리자가 '거절'로 바꾼 휴대폰) -->
@@ -222,7 +241,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-12b</p>
+    <p class="ver">화면 버전 11-12c</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -267,14 +286,15 @@
     })();
     const API = S ? `https://script.google.com/macros/s/${S}/exec` : '';
     // 학교(배포)마다 따로 저장
-    const K = { user: `pindex.${S}.userId`, cart: `pindex.${S}.cart`, last: `pindex.${S}.last`, recent: `pindex.${S}.recent`, brand: `pindex.${S}.brand` };
+    const K = { user: `pindex.${S}.userId`, cart: `pindex.${S}.cart`, last: `pindex.${S}.last`, recent: `pindex.${S}.recent`, brand: `pindex.${S}.brand`,
+      askedCls: `pindex.${S}.askedCls` }; // askedCls: 우리 반을 한 번 물어봤는지(건너뛰어도 다시 묻지 않게)
     // 위쪽 제목: '봉명초 정보기기 › 대여'. 학교명은 서버(scan)가 알려 주고, 다음에 열 때 바로 보이도록 휴대폰에 기억한다.
-    const VIEW_TITLES = { register: '이름 등록', stopped: '사용 중지', rent: '대여', cart: '담기 목록', done: '대여 완료',
+    const VIEW_TITLES = { register: '이름 등록', me: '내 정보', stopped: '사용 중지', rent: '대여', cart: '담기 목록', done: '대여 완료',
       class: '우리 반 대여 현황', blocked: '대여 불가', return: '반납', bundle: '함께 반납', rdone: '반납 완료' };
     let brand = load(K.brand, '정보기기'), viewName = 'loading';
     const CART_TTL = 3 * 60 * 60 * 1000;
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
-    const VIEWS = ['loading', 'register', 'stopped', 'home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone'];
+    const VIEWS = ['loading', 'register', 'me', 'stopped', 'home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone'];
     // 반납 상태: 화면 표시 ↔ 시트 값(STATUS.RETURN)
     const RSTATUS = [{ v: '정상', label: '정상' }, { v: '파손', label: '파손·고장' }, { v: '충전기 누락', label: '충전기 누락' }];
     const rLabel = v => (RSTATUS.find(s => s.v === v) || {}).label || v;
@@ -297,6 +317,9 @@
     let ctx = null;       // getScanContext 결과
     let deviceId = '';
     let sel = { group: '', cls: '', period: '' };
+    let selOpen = false;    // 대여 화면: 학급·기간 고르기를 펼쳤는지(골라져 있으면 요약 한 줄 + [바꾸기])
+    let meInfo = { name: '', cls: '' }; // 이 휴대폰 사용자(이름·우리 반)
+    let meSel = { group: '', cls: '', none: false }, meBack = null; // 내 정보 화면
     let lastDone = null;
     let rStatus = '정상';   // ⑤ 한 대 반납 상태
     let bundle = [];        // ⑥ [{ loanId, deviceId, model, on, status, symptom }]
@@ -415,21 +438,45 @@
       return Array.from({ length: n }, (_, i) => ({ value: `${group}-${i + 1}`, label: `${i + 1}반` }));
     }
 
-    // ---------- 학급·기간 고르기(대여·담기 화면 공통) ----------
-    function selHtml() {
+    /** 학급 값 → 학년 묶음('6' / '유치원' / '기타'). 이 학교 설정에 그 학급이 있을 때만 쓴다(validCls). */
+    function groupOf(cls) {
+      if (!cls) return '';
+      if (cls.indexOf('유치원 ') === 0) return '유치원';
+      const m = /^(\d+)-\d+$/.exec(cls);
+      return m ? m[1] : '기타';
+    }
+    function validCls(cls) {
+      const g = groupOf(cls);
+      return !!g && groups().includes(g) && classesOf(g).some(c => c.value === cls);
+    }
+
+    /** 학년 → 반 고르기(대여 화면과 내 정보 공용). st: { group, cls }, p: data 속성 앞말('' 대여, 'm' 내 정보) */
+    function pickerHtml(st, p) {
       const gs = groups();
-      const due = dueFor(sel.period);
       const gName = g => (g === '유치원' || g === '기타' ? g : g + '학년');
-      const subLabel = sel.group === '유치원' ? '유치원 반 고르기' : sel.group === '기타' ? '대여처 고르기' : `${gName(sel.group)} › 반 고르기`;
-      return `<h2>어느 반이 빌리나요?</h2>
-        <p class="lv">${gs.length > 1 ? '① 학년' : ''}</p>
-        <div class="chips grades">${gs.map(g => `<button class="chip ${g === sel.group ? 'on' : ''}" data-group="${esc(g)}">${gName(g)}</button>`).join('')}</div>
-        ${sel.group ? `<div class="classes"><p class="lv">② ${esc(subLabel)}</p>
-          <div class="chips">${classesOf(sel.group).map(c => `<button class="chip ${c.value === sel.cls ? 'on' : ''}" data-cls="${esc(c.value)}">${esc(c.label)}</button>`).join('')}</div></div>` : ''}
+      const subLabel = st.group === '유치원' ? '유치원 반 고르기' : st.group === '기타' ? '대여처 고르기' : `${gName(st.group)} › 반 고르기`;
+      return `<p class="lv">${gs.length > 1 ? '① 학년' : ''}</p>
+        <div class="chips grades">${gs.map(g => `<button class="chip ${g === st.group ? 'on' : ''}" data-${p}group="${esc(g)}">${gName(g)}</button>`).join('')}</div>
+        ${st.group ? `<div class="classes"><p class="lv">② ${esc(subLabel)}</p>
+          <div class="chips">${classesOf(st.group).map(c => `<button class="chip ${c.value === st.cls ? 'on' : ''}" data-${p}cls="${esc(c.value)}">${esc(c.label)}</button>`).join('')}</div></div>` : ''}`;
+    }
+
+    // ---------- 학급·기간 고르기(대여·담기 화면 공통) ----------
+    // 학급이 골라져 있으면(우리 반 또는 지난번 값) 요약 한 줄 + [바꾸기]만 보이고, 누르면 펼친다(2026-11-12)
+    function selHtml() {
+      const due = dueFor(sel.period);
+      const dueHtml = `<div class="due">${due.date ? `반납예정 ${pretty(due.date)}` : '반납예정일 없음(미정)'}
+          ${due.note ? `<span class="badge b-warn">${esc(due.note)}</span>` : ''}</div>`;
+      if (!selOpen && sel.cls) {
+        return `<div class="selsum"><div style="min-width:0">
+            <div class="sumcls">${esc(clsLabel(sel.cls))}${sel.cls === meInfo.cls ? ' <span class="badge b-acc">우리 반</span>' : ''}</div>
+            ${dueHtml}</div>
+          <button class="chip" data-open="1">바꾸기</button></div>`;
+      }
+      return `<h2>어느 반이 빌리나요?</h2>${pickerHtml(sel, '')}
         <h2 style="margin-top:4px">언제까지 쓰나요?</h2>
         <div class="chips">${Object.keys(PERIODS).map(p => `<button class="chip ${p === sel.period ? 'on' : ''}" data-period="${p}">${p}</button>`).join('')}</div>
-        <div class="due">${due.date ? `반납예정 ${pretty(due.date)}` : '반납예정일 없음(미정)'}
-          ${due.note ? `<span class="badge b-warn">${esc(due.note)}</span>` : ''}</div>`;
+        ${dueHtml}`;
     }
     function renderSel() {
       document.querySelectorAll('.sel').forEach(el => { el.innerHTML = selHtml(); });
@@ -437,7 +484,7 @@
     }
     /** 반 상자의 꼭지가 고른 학년 버튼 아래를 가리키게. 숨은 화면은 크기가 0이라 화면을 보일 때(show) 다시 부른다. */
     function aimTips() {
-      document.querySelectorAll('.sel').forEach(el => {
+      document.querySelectorAll('.sel, .mesel').forEach(el => {
         const on = el.querySelector('.grades .chip.on'), box = el.querySelector('.classes');
         if (!on || !box || !on.offsetWidth) return;
         const a = on.getBoundingClientRect(), b = box.getBoundingClientRect();
@@ -448,6 +495,7 @@
     document.addEventListener('click', e => {
       const b = e.target.closest('.sel .chip');
       if (!b) return;
+      if (b.dataset.open) selOpen = true;
       if (b.dataset.group) { sel.group = b.dataset.group; if (!classesOf(sel.group).some(c => c.value === sel.cls)) sel.cls = ''; }
       if (b.dataset.cls) sel.cls = b.dataset.cls;
       if (b.dataset.period) sel.period = b.dataset.period;
@@ -455,6 +503,56 @@
       renderSel();
       renderDock();
     });
+
+    // ---------- 내 정보(이름·우리 반) ----------
+    /** first: 등록 직후 한 번 '우리 반을 골라 주세요'. 아니면 위쪽 이름을 눌러 들어온 것(돌아갈 화면 기억). */
+    function showMe(first) {
+      meBack = first ? null : { view: viewName, dock: dockMode };
+      meSel = validCls(meInfo.cls) ? { group: groupOf(meInfo.cls), cls: meInfo.cls, none: false } : { group: '', cls: '', none: !first && !meInfo.cls };
+      $('meTitle').textContent = first ? '우리 반을 골라 주세요' : '내 정보';
+      $('meSub').textContent = first
+        ? "고른 반이 대여할 때 미리 골라져 나옵니다. 담임 학급이 없으면 '우리 반 없음'을 누르세요. 나중에 위쪽 이름을 눌러 바꿀 수 있습니다."
+        : '이름과 우리 반을 바꿀 수 있습니다. 지난 대여기록의 이름은 그대로 남습니다.';
+      $('meName').value = meInfo.name;
+      $('meCancel').textContent = first ? '나중에 하기' : '취소';
+      renderMeSel();
+      show('me');
+      setDock('');
+      aimTips();
+    }
+    function renderMeSel() {
+      document.querySelector('.mesel').innerHTML = pickerHtml(meSel, 'm')
+        + `<button class="chip ${meSel.none ? 'on' : ''}" data-mnone="1">우리 반 없음(교과·행정 등)</button>`;
+      aimTips();
+    }
+    document.addEventListener('click', e => {
+      const b = e.target.closest('.mesel .chip');
+      if (!b) return;
+      if (b.dataset.mgroup) { meSel.group = b.dataset.mgroup; meSel.none = false; if (!classesOf(meSel.group).some(c => c.value === meSel.cls)) meSel.cls = ''; }
+      if (b.dataset.mcls) { meSel.cls = b.dataset.mcls; meSel.none = false; }
+      if (b.dataset.mnone) meSel = { group: '', cls: '', none: true };
+      renderMeSel();
+    });
+    function leaveMe() {
+      $('err').textContent = '';
+      if (meBack) { show(meBack.view); renderSel(); setDock(meBack.dock); } else route();
+    }
+    $('meCancel').onclick = leaveMe;
+    $('meSave').onclick = async () => {
+      const name = $('meName').value.trim();
+      if (!name) { $('err').textContent = '이름을 입력해 주세요.'; return; }
+      if (meSel.group && !meSel.cls) { $('err').textContent = '반까지 골라 주세요.'; return; }
+      $('meSave').disabled = true;
+      try {
+        const r = await call('updateMe', userId(), name, meSel.cls);
+        meInfo = { name: r.name, cls: r.cls || '' };
+        $('who').textContent = meInfo.name + ' 님 ›';
+        // 우리 반을 바꿨으면 지금 대여 화면도 그 반으로
+        if (validCls(meInfo.cls)) { sel.group = groupOf(meInfo.cls); sel.cls = meInfo.cls; selOpen = false; }
+        leaveMe();
+      } catch (e) { fail(e); } finally { $('meSave').disabled = false; }
+    };
+    $('who').onclick = () => { if (ctx && userId()) showMe(false); };
 
     // ---------- 기기 카드 ----------
     // '수리 중'은 기기 상태의 예전 이름(서버가 '수리'로 바꿔 보냄)
@@ -895,18 +993,24 @@
         const me = r.me;
         if (me.status === '미등록') { show('register'); $('name').focus(); return; }
         if (me.status !== '승인') { show('stopped'); return; }
-        $('who').textContent = me.name + ' 님';
+        meInfo = { name: me.name, cls: me.cls || '' };
+        $('who').textContent = me.name + ' 님 ›';
         if (r.error) throw new Error(r.error);
         ctx = r.ctx;
         if (!keepSel || !sel.period) {
           const last = load(K.last, {});
-          sel = {
-            group: last.group && groups().includes(last.group) ? last.group : '',
-            cls: '',
-            period: last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주'),
-          };
-          if (sel.group && classesOf(sel.group).some(c => c.value === last.cls)) sel.cls = last.cls;
+          const period = last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주');
+          if (validCls(meInfo.cls)) {
+            // 우리 반이 있으면 QR을 찍을 때마다 우리 반으로(다른 반으로 바꿔 빌렸어도 다음엔 다시 우리 반)
+            sel = { group: groupOf(meInfo.cls), cls: meInfo.cls, period: period };
+          } else {
+            sel = { group: last.group && groups().includes(last.group) ? last.group : '', cls: '', period: period };
+            if (sel.group && classesOf(sel.group).some(c => c.value === last.cls)) sel.cls = last.cls;
+          }
+          selOpen = false;
         }
+        // 우리 반을 아직 정하지 않았으면 한 번만 묻는다(등록 직후, 또는 이 기능 전에 등록한 휴대폰)
+        if (!meInfo.cls && !load(K.askedCls, false)) { save(K.askedCls, true); return showMe(true); }
         route();
       } catch (e) { show('home'); fail(e); }
     }
