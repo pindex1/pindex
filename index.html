@@ -225,7 +225,7 @@
     <div id="v-bundle" class="hidden">
       <div class="card">
         <h1 id="bTitle"></h1>
-        <p class="muted">빼고 싶은 기기는 체크를 풀면 대여 중으로 남습니다. 상태 버튼을 누르면 정상 → 파손·고장 → 충전기 누락 순으로 바뀝니다.</p>
+        <p class="muted">빼고 싶은 기기는 체크를 풀면 대여 중으로 남습니다. 상태 버튼을 누르면 정상 ↔ 파손·고장으로 바뀝니다.</p>
         <ul class="list" id="bList"></ul>
       </div>
     </div>
@@ -241,7 +241,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-12c</p>
+    <p class="ver">화면 버전 11-12d</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -296,7 +296,8 @@
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
     const VIEWS = ['loading', 'register', 'me', 'stopped', 'home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone'];
     // 반납 상태: 화면 표시 ↔ 시트 값(STATUS.RETURN)
-    const RSTATUS = [{ v: '정상', label: '정상' }, { v: '파손', label: '파손·고장' }, { v: '충전기 누락', label: '충전기 누락' }];
+    // '충전기 누락'은 2026-11-12 뺐다(태블릿은 충전함에 두고 기기만 빌려 감). 충전기를 잃어버렸으면 파손·고장에 증상으로 적는다.
+    const RSTATUS = [{ v: '정상', label: '정상' }, { v: '파손', label: '파손·고장' }];
     const rLabel = v => (RSTATUS.find(s => s.v === v) || {}).label || v;
     const DOW = ['일', '월', '화', '수', '목', '금', '토'];
     const $ = id => document.getElementById(id);
@@ -720,7 +721,7 @@
       const count = s => r.devices.filter(d => d.status === s).length;
       $('rdoneInfo').innerHTML = `<dt>반납자</dt><dd>${esc(r.name)}</dd><dt>일시</dt><dd>${esc(r.at)}</dd>`;
       $('rdoneSum').innerHTML = [
-        ['정상', '보관 중으로', 'b-ok'], ['파손', '수리 접수', 'b-err'], ['충전기 누락', '관리자 확인 필요', 'b-warn'],
+        ['정상', '보관 중으로', 'b-ok'], ['파손', '수리 접수', 'b-err'],
       ].filter(([s]) => count(s)).map(([s, what, cls]) => `<li><span>${rLabel(s)} ${count(s)}대</span><span class="badge ${cls}">${what}</span></li>`).join('');
       $('rdoneList').innerHTML = r.devices.map(d => `<li><div><div>${esc(d.model)}</div><div class="id">${esc(d.id)}</div></div><span class="muted">${rLabel(d.status)}</span></li>`).join('');
       $('rdoneFailed').innerHTML = r.failed.length
