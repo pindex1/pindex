@@ -107,8 +107,6 @@
       color: #fff; text-align: center; }
     .scanner .bar p { margin: 0 0 12px; font-size: 15px; }
     .scanner .bar .btn { max-width: 420px; }
-    .scanner .scanbtns { display: flex; gap: 8px; max-width: 420px; margin: 0 auto; }
-    .scanner .scanbtns .btn { flex: 1; margin-top: 0; }
     /* 화면을 누른 자리(초점) */
     .scanner .ring { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border: 2px solid #FFD54F; border-radius: 50%;
       pointer-events: none; animation: ring 1s ease-out forwards; }
@@ -297,7 +295,7 @@
       <button class="btn ghost" id="invEnd">이 휴대폰 재물조사 끝내기</button>
       <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 연속으로 확인됩니다. 조사 종료는 PC 화면에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-16d</p>
+    <p class="ver">화면 버전 11-16e</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -324,10 +322,7 @@
     <div class="bar">
       <div class="scanres hidden" id="scanRes"></div>
       <p id="scanMsg"></p>
-      <div class="scanbtns">
-        <button class="btn ghost hidden" id="camSwitch">카메라 바꾸기</button>
-        <button class="btn ghost" id="scanClose">닫기</button>
-      </div>
+      <button class="btn ghost" id="scanClose">닫기</button>
     </div>
   </div>
 
@@ -1110,7 +1105,6 @@
       $('invTop').classList.toggle('hidden', !invToken());
       if (invToken()) renderInvCount();
       $('scanner').classList.remove('hidden');
-      $('camSwitch').classList.add('hidden');
       let s;
       try {
         s = await startCamera();
@@ -1124,7 +1118,6 @@
       if ($('scanner').classList.contains('hidden')) { stopStream(s); return; } // 켜는 사이 닫음
       scanStream = s;
       await attachStream();
-      renderCamSwitch();
       try {
         if (!detector && 'BarcodeDetector' in window) {
           const formats = await window.BarcodeDetector.getSupportedFormats();
@@ -1145,8 +1138,8 @@
     // ① 화면을 누르면 그 자리에 초점을 다시 잡는다(노란 동그라미).
     // ② QR을 3초 동안 못 읽으면 네모 가운데에 초점을 다시 잡는다(연속 초점이 엉뚱한 거리에 멈춘 경우).
     // ③ 자동 초점이 없는 렌즈(초광각 등)가 켜지면 자동 초점 되는 후면 카메라를 찾아 바꾸고 휴대폰에 기억한다.
-    //    후면 카메라가 여럿이면 '카메라 바꾸기'로 직접 고를 수도 있다(고른 것도 기억).
-    // 초점 조절은 안드로이드 크롬·웨일처럼 되는 브라우저에서만. 아이폰 사파리는 웹에서 초점을 못 바꾼다(③의 카메라 바꾸기는 됨).
+    //    사용자가 고르는 '카메라 바꾸기'는 두지 않는다(2026-11-16: 잘못 고르면 그 렌즈가 기억돼 계속 흐림 — 자동으로 충분).
+    // 초점 조절은 안드로이드 크롬·웨일처럼 되는 브라우저에서만. 아이폰 사파리는 웹에서 초점을 못 바꾼다.
     const CAM_KEY = 'pindex.camId'; // 휴대폰 카메라라 학교와 무관
     let camTrack = null, camCaps = {}, camZoom = 0, lastFocusAt = 0, focusBackTimer = null, focusTipShown = false;
 
@@ -1179,6 +1172,8 @@
       if (saved) {
         try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(saved)); }
         catch (e) { if (e && e.name === 'NotAllowedError') throw e; save(CAM_KEY, ''); }
+        // 기억한 카메라가 초점 고정이면(11-16d의 '카메라 바꾸기'로 고른 것 등) 버리고 다시 고른다
+        if (s && hasAutoFocus(s.getVideoTracks()[0]) === false) { stopStream(s); s = null; save(CAM_KEY, ''); }
       }
       if (s) return s;
       s = await navigator.mediaDevices.getUserMedia(cameraConstraints(''));
@@ -1281,39 +1276,9 @@
       refocus(toVideoPoint(e.clientX, e.clientY)).then(ok => {
         if (ok || focusTipShown) return;
         focusTipShown = true;
-        $('scanMsg').textContent = '이 휴대폰은 화면을 눌러 초점을 맞출 수 없습니다. 휴대폰을 조금 떼었다가 천천히 가까이 해 보세요.'
-          + ($('camSwitch').classList.contains('hidden') ? '' : " 그래도 흐리면 '카메라 바꾸기'를 눌러 보세요.");
+        $('scanMsg').textContent = '이 휴대폰은 화면을 눌러 초점을 맞출 수 없습니다. 휴대폰을 조금 떼었다가 천천히 가까이 해 보세요.';
       });
     });
-
-    // 후면 카메라가 여럿이면 '카메라 바꾸기'(초광각·망원은 가까이에서 초점이 안 맞을 수 있음)
-    async function renderCamSwitch() {
-      const cams = await backCameras();
-      if (scanStream) $('camSwitch').classList.toggle('hidden', cams.length < 2);
-    }
-    $('camSwitch').onclick = async () => {
-      const cams = await backCameras();
-      if (cams.length < 2 || !camTrack) return;
-      const cur = (camTrack.getSettings() || {}).deviceId || '';
-      const next = cams[(cams.findIndex(c => c.deviceId === cur) + 1) % cams.length];
-      clearTimeout(scanTimer);
-      clearTimeout(focusBackTimer);
-      stopStream(scanStream);
-      scanStream = null;
-      $('scanMsg').textContent = '카메라를 바꾸는 중…';
-      let s = null;
-      try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(next.deviceId)); save(CAM_KEY, next.deviceId); }
-      catch (e) {
-        try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(cur)); }
-        catch (e2) { closeScanner(); $('err').textContent = '카메라를 켜지 못했습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.'; return; }
-      }
-      if ($('scanner').classList.contains('hidden')) { stopStream(s); return; }
-      scanStream = s;
-      await attachStream();
-      const n = cams.findIndex(c => c.deviceId === (camTrack.getSettings() || {}).deviceId) + 1;
-      $('scanMsg').textContent = (n ? `카메라 ${n}/${cams.length} · ` : '') + scanHint();
-      scanTick();
-    };
 
     function closeScanner() {
       clearTimeout(scanTimer);
