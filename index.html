@@ -107,6 +107,12 @@
       color: #fff; text-align: center; }
     .scanner .bar p { margin: 0 0 12px; font-size: 15px; }
     .scanner .bar .btn { max-width: 420px; }
+    .scanner .scanbtns { display: flex; gap: 8px; max-width: 420px; margin: 0 auto; }
+    .scanner .scanbtns .btn { flex: 1; margin-top: 0; }
+    /* 화면을 누른 자리(초점) */
+    .scanner .ring { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border: 2px solid #FFD54F; border-radius: 50%;
+      pointer-events: none; animation: ring 1s ease-out forwards; }
+    @keyframes ring { 0% { transform: scale(1.5); opacity: 1; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
     /* 재물조사 모드: 카메라를 켠 채 이어 찍고 결과를 여기에 */
     .scanner .scanres { display: inline-block; max-width: 420px; margin: 0 auto 10px; padding: 8px 14px; border-radius: 12px; font-size: 16px; font-weight: 700; }
     .scanres.ok { background: var(--ok); color: #fff; }
@@ -291,7 +297,7 @@
       <button class="btn ghost" id="invEnd">이 휴대폰 재물조사 끝내기</button>
       <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 연속으로 확인됩니다. 조사 종료는 PC 화면에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-16c</p>
+    <p class="ver">화면 버전 11-16d</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -318,7 +324,10 @@
     <div class="bar">
       <div class="scanres hidden" id="scanRes"></div>
       <p id="scanMsg"></p>
-      <button class="btn ghost" id="scanClose">닫기</button>
+      <div class="scanbtns">
+        <button class="btn ghost hidden" id="camSwitch">카메라 바꾸기</button>
+        <button class="btn ghost" id="scanClose">닫기</button>
+      </div>
     </div>
   </div>
 
@@ -970,6 +979,7 @@
         return again();
       }
       invShownId = id;
+      lastFocusAt = Date.now(); // 방금 읽었으니 초점은 그대로
       if (navigator.vibrate) navigator.vibrate(60);
       invBusy = true;
       scanRes('info', '확인하는 중…');
@@ -1100,12 +1110,10 @@
       $('invTop').classList.toggle('hidden', !invToken());
       if (invToken()) renderInvCount();
       $('scanner').classList.remove('hidden');
+      $('camSwitch').classList.add('hidden');
+      let s;
       try {
-        scanStream = await navigator.mediaDevices.getUserMedia({
-          // 해상도를 안 정하면 640×480으로 켜지는 휴대폰이 많다. 라벨 QR은 작고 촘촘해서(약 2cm에 약 50칸) 그 화질로는 못 읽는다.
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        });
+        s = await startCamera();
       } catch (e) {
         closeScanner();
         $('err').textContent = e && e.name === 'NotAllowedError'
@@ -1113,10 +1121,10 @@
           : '카메라를 켜지 못했습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.';
         return;
       }
-      const v = $('scanVideo');
-      v.srcObject = scanStream;
-      try { await v.play(); } catch (e) {}
-      await tuneCamera();
+      if ($('scanner').classList.contains('hidden')) { stopStream(s); return; } // 켜는 사이 닫음
+      scanStream = s;
+      await attachStream();
+      renderCamSwitch();
       try {
         if (!detector && 'BarcodeDetector' in window) {
           const formats = await window.BarcodeDetector.getSupportedFormats();
@@ -1129,10 +1137,72 @@
         return;
       }
       if (!scanStream) return; // 그사이 닫힘
-      $('scanMsg').textContent = invToken()
-        ? '기기 QR을 차례로 네모 안에 비춰 주세요'
-        : '기기의 QR을 네모 안에 맞춰 주세요. 흐리면 휴대폰을 조금 떼어 주세요.';
+      $('scanMsg').textContent = scanHint();
       scanTick();
+    }
+
+    // ---------- 카메라·초점(2026-11-16 '초점이 안 맞아 못 읽는 일이 잦음') ----------
+    // ① 화면을 누르면 그 자리에 초점을 다시 잡는다(노란 동그라미).
+    // ② QR을 3초 동안 못 읽으면 네모 가운데에 초점을 다시 잡는다(연속 초점이 엉뚱한 거리에 멈춘 경우).
+    // ③ 자동 초점이 없는 렌즈(초광각 등)가 켜지면 자동 초점 되는 후면 카메라를 찾아 바꾸고 휴대폰에 기억한다.
+    //    후면 카메라가 여럿이면 '카메라 바꾸기'로 직접 고를 수도 있다(고른 것도 기억).
+    // 초점 조절은 안드로이드 크롬·웨일처럼 되는 브라우저에서만. 아이폰 사파리는 웹에서 초점을 못 바꾼다(③의 카메라 바꾸기는 됨).
+    const CAM_KEY = 'pindex.camId'; // 휴대폰 카메라라 학교와 무관
+    let camTrack = null, camCaps = {}, camZoom = 0, lastFocusAt = 0, focusBackTimer = null, focusTipShown = false;
+
+    function cameraConstraints(deviceId) {
+      // 해상도를 안 정하면 640×480으로 켜지는 휴대폰이 많다. 라벨 QR은 작고 촘촘해서(약 2cm에 약 50칸) 그 화질로는 못 읽는다.
+      const video = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+      if (deviceId) video.deviceId = { exact: deviceId };
+      else video.facingMode = { ideal: 'environment' };
+      return { video: video, audio: false };
+    }
+    function capsOf(track) { try { return (track && track.getCapabilities && track.getCapabilities()) || {}; } catch (e) { return {}; } }
+    /** 자동 초점 렌즈인지: true / false(초점 고정) / null(알 수 없음 — 아이폰 등은 알려 주지 않음) */
+    function hasAutoFocus(track) {
+      const m = capsOf(track).focusMode;
+      if (!Array.isArray(m)) return null;
+      return m.indexOf('continuous') >= 0 || m.indexOf('single-shot') >= 0;
+    }
+    async function backCameras() {
+      try {
+        return (await navigator.mediaDevices.enumerateDevices())
+          .filter(d => d.kind === 'videoinput' && d.deviceId && !/front|user|전면|facetime/i.test(d.label));
+      } catch (e) { return []; }
+    }
+    function stopStream(s) { if (s) s.getTracks().forEach(t => t.stop()); }
+
+    /** 카메라 켜기: 기억한 카메라 → 없으면 후면 기본. 기본이 초점 고정 렌즈면 자동 초점 되는 후면 카메라를 찾는다. */
+    async function startCamera() {
+      const saved = load(CAM_KEY, '');
+      let s = null;
+      if (saved) {
+        try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(saved)); }
+        catch (e) { if (e && e.name === 'NotAllowedError') throw e; save(CAM_KEY, ''); }
+      }
+      if (s) return s;
+      s = await navigator.mediaDevices.getUserMedia(cameraConstraints(''));
+      if (hasAutoFocus(s.getVideoTracks()[0]) !== false) return s;
+      const firstId = (s.getVideoTracks()[0].getSettings() || {}).deviceId || '';
+      const others = (await backCameras()).filter(c => c.deviceId !== firstId);
+      if (!others.length) return s;
+      stopStream(s); // 카메라 두 개를 한꺼번에 못 여는 휴대폰이 많다
+      for (const c of others) {
+        try {
+          const t = await navigator.mediaDevices.getUserMedia(cameraConstraints(c.deviceId));
+          if (hasAutoFocus(t.getVideoTracks()[0])) { save(CAM_KEY, c.deviceId); return t; }
+          stopStream(t);
+        } catch (e) { /* 다음 카메라 */ }
+      }
+      return navigator.mediaDevices.getUserMedia(cameraConstraints(firstId)); // 모두 초점 고정이면 처음 카메라
+    }
+
+    async function attachStream() {
+      const v = $('scanVideo');
+      v.srcObject = scanStream;
+      try { await v.play(); } catch (e) {}
+      await tuneCamera();
+      lastFocusAt = Date.now();
     }
 
     /**
@@ -1140,22 +1210,117 @@
      * 지원하지 않거나 실패하면 그대로 둔다.
      */
     async function tuneCamera() {
-      const track = scanStream && scanStream.getVideoTracks()[0];
-      if (!track || !track.getCapabilities) return;
-      let caps = {};
-      try { caps = track.getCapabilities() || {}; } catch (e) { return; }
-      if ((caps.focusMode || []).indexOf('continuous') >= 0) {
-        try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
-      }
-      if (caps.zoom && caps.zoom.max >= 1.5) {
-        try { await track.applyConstraints({ advanced: [{ zoom: Math.min(2, caps.zoom.max) }] }); } catch (e) {}
-      }
+      camTrack = scanStream && scanStream.getVideoTracks()[0];
+      camCaps = capsOf(camTrack);
+      camZoom = camCaps.zoom && camCaps.zoom.max >= 1.5 ? Math.min(2, camCaps.zoom.max) : 0;
+      if ((camCaps.focusMode || []).indexOf('continuous') >= 0) await applyCam({ focusMode: 'continuous' });
+      else if (camZoom) await applyCam({});
     }
+    /** 카메라 설정 바꾸기. 줌을 늘 함께 넣는다(설정을 바꿀 때 빠진 값이 처음으로 돌아가는 브라우저가 있음). */
+    async function applyCam(c) {
+      if (!camTrack || !camTrack.applyConstraints) return false;
+      const withZoom = camZoom ? Object.assign({ zoom: camZoom }, c) : c;
+      try { await camTrack.applyConstraints({ advanced: [withZoom] }); return true; } catch (e) {}
+      if (!camZoom || !Object.keys(c).length) return false;
+      try { await camTrack.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; }
+    }
+    function focusAbility() {
+      const m = camCaps.focusMode || [];
+      const sup = navigator.mediaDevices.getSupportedConstraints ? navigator.mediaDevices.getSupportedConstraints() : {};
+      return { single: m.indexOf('single-shot') >= 0, cont: m.indexOf('continuous') >= 0, poi: !!sup.pointsOfInterest };
+    }
+    function canFocus() { const f = focusAbility(); return f.single || (f.poi && f.cont); }
+    /** pt(영상 기준 0~1) 자리에 초점을 한 번 맞추고, 2초 뒤 연속 초점으로 돌린다(거리가 바뀌어도 따라가게). */
+    async function refocus(pt) {
+      const f = focusAbility();
+      if (!camTrack || !canFocus()) return false;
+      const c = { focusMode: f.single ? 'single-shot' : 'continuous' };
+      if (f.poi) c.pointsOfInterest = [pt];
+      const track = camTrack;
+      const ok = await applyCam(c);
+      clearTimeout(focusBackTimer);
+      if (ok && f.single && f.cont) {
+        focusBackTimer = setTimeout(() => {
+          if (camTrack === track) applyCam(f.poi ? { focusMode: 'continuous', pointsOfInterest: [pt] } : { focusMode: 'continuous' });
+        }, 2000);
+      }
+      return ok;
+    }
+    /** 화면 좌표 → 영상 좌표(0~1). 영상은 화면을 꽉 채우게(object-fit: cover) 잘려 보인다. */
+    function toVideoPoint(cx, cy) {
+      const v = $('scanVideo'), r = v.getBoundingClientRect();
+      const vw = v.videoWidth || r.width, vh = v.videoHeight || r.height;
+      const k = Math.max(r.width / vw, r.height / vh);
+      const clamp = n => Math.round(Math.min(1, Math.max(0, n)) * 1000) / 1000;
+      return { x: clamp((cx - r.left - (r.width - vw * k) / 2) / (vw * k)), y: clamp((cy - r.top - (r.height - vh * k) / 2) / (vh * k)) };
+    }
+    function frameCenter() {
+      const r = document.querySelector('.scanner .frame').getBoundingClientRect();
+      return toVideoPoint(r.left + r.width / 2, r.top + r.height / 2);
+    }
+    /** QR을 한동안 못 읽으면 네모 가운데에 초점을 다시 잡는다. */
+    function autoRefocus() {
+      if (Date.now() - lastFocusAt < 3000 || !canFocus()) return;
+      lastFocusAt = Date.now();
+      refocus(frameCenter());
+    }
+    function scanHint() {
+      return (invToken() ? '기기 QR을 차례로 네모 안에 비춰 주세요.' : '기기의 QR을 네모 안에 맞춰 주세요.')
+        + (canFocus() ? ' 흐리면 화면을 눌러 초점을 맞춰 주세요.' : ' 흐리면 휴대폰을 조금 떼어 주세요.');
+    }
+    // 화면을 누르면 그 자리에 초점
+    $('scanner').addEventListener('click', e => {
+      if (!scanStream || e.target.closest('.bar') || e.target.closest('.invtop')) return;
+      const ring = document.createElement('div');
+      ring.className = 'ring';
+      ring.style.left = e.clientX + 'px';
+      ring.style.top = e.clientY + 'px';
+      $('scanner').appendChild(ring);
+      setTimeout(() => ring.remove(), 1000);
+      lastFocusAt = Date.now() + 2000; // 누른 뒤 잠시는 자동으로 다시 잡지 않는다
+      refocus(toVideoPoint(e.clientX, e.clientY)).then(ok => {
+        if (ok || focusTipShown) return;
+        focusTipShown = true;
+        $('scanMsg').textContent = '이 휴대폰은 화면을 눌러 초점을 맞출 수 없습니다. 휴대폰을 조금 떼었다가 천천히 가까이 해 보세요.'
+          + ($('camSwitch').classList.contains('hidden') ? '' : " 그래도 흐리면 '카메라 바꾸기'를 눌러 보세요.");
+      });
+    });
+
+    // 후면 카메라가 여럿이면 '카메라 바꾸기'(초광각·망원은 가까이에서 초점이 안 맞을 수 있음)
+    async function renderCamSwitch() {
+      const cams = await backCameras();
+      if (scanStream) $('camSwitch').classList.toggle('hidden', cams.length < 2);
+    }
+    $('camSwitch').onclick = async () => {
+      const cams = await backCameras();
+      if (cams.length < 2 || !camTrack) return;
+      const cur = (camTrack.getSettings() || {}).deviceId || '';
+      const next = cams[(cams.findIndex(c => c.deviceId === cur) + 1) % cams.length];
+      clearTimeout(scanTimer);
+      clearTimeout(focusBackTimer);
+      stopStream(scanStream);
+      scanStream = null;
+      $('scanMsg').textContent = '카메라를 바꾸는 중…';
+      let s = null;
+      try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(next.deviceId)); save(CAM_KEY, next.deviceId); }
+      catch (e) {
+        try { s = await navigator.mediaDevices.getUserMedia(cameraConstraints(cur)); }
+        catch (e2) { closeScanner(); $('err').textContent = '카메라를 켜지 못했습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.'; return; }
+      }
+      if ($('scanner').classList.contains('hidden')) { stopStream(s); return; }
+      scanStream = s;
+      await attachStream();
+      const n = cams.findIndex(c => c.deviceId === (camTrack.getSettings() || {}).deviceId) + 1;
+      $('scanMsg').textContent = (n ? `카메라 ${n}/${cams.length} · ` : '') + scanHint();
+      scanTick();
+    };
 
     function closeScanner() {
       clearTimeout(scanTimer);
+      clearTimeout(focusBackTimer);
       if (scanStream) scanStream.getTracks().forEach(t => t.stop());
       scanStream = null;
+      camTrack = null;
       $('scanVideo').srcObject = null;
       const wasOpen = !$('scanner').classList.contains('hidden');
       $('scanner').classList.add('hidden');
@@ -1206,6 +1371,7 @@
         const id = text && idFromQr(text);
         if (id) return onScanned(id);
         if (text) $('scanMsg').textContent = id === false ? '다른 학교의 QR입니다.' : '정보기기 대여용 QR이 아닙니다.';
+        else autoRefocus(); // 못 읽는 중이면 3초마다 초점 다시
         scanTimer = setTimeout(scanTick, 150);
       });
     }
