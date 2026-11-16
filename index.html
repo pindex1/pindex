@@ -241,7 +241,7 @@
       <div id="rdoneFailed"></div>
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
     </div>
-    <p class="ver">화면 버전 11-12d</p>
+    <p class="ver">화면 버전 11-16a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -423,27 +423,33 @@
       const jong = (ch - 0xAC00) % 28;
       return jong === 0 || jong === 8 ? '로' : '으로';
     }
-    function clsLabel(cls) { return /^\d+-\d+$/.test(cls) ? cls + '반' : cls; }
+    // 학급 값: '6-2' 또는 초중학교 중학년 '중1-2'(2026-11-16). 화면에는 '6-2반'·'중1-2반'
+    function clsLabel(cls) { return /^(중)?\d+-\d+$/.test(cls) ? cls + '반' : cls; }
+    /** 학년 이름: 서버가 주는 gradeLabels(['1'…'6','중1'…]). 옛 서버면 숫자. */
+    const gradeLabel = i => ((ctx.config.gradeLabels || [])[i] || String(i + 1));
+    /** 학년 버튼 글자: 숫자면 '6학년', 아니면 그대로('중1', '유치원', '기타') */
+    const gradeName = g => (/^\d+$/.test(g) ? g + '학년' : g);
 
     function groups() {
       const g = [];
       if (ctx.config.kinder.length) g.push('유치원');
-      ctx.config.grades.forEach((n, i) => { if (n > 0) g.push(String(i + 1)); });
+      ctx.config.grades.forEach((n, i) => { if (n > 0) g.push(gradeLabel(i)); });
       if (ctx.config.others.length) g.push('기타');
       return g;
     }
     function classesOf(group) {
       if (group === '유치원') return ctx.config.kinder.map(k => ({ value: '유치원 ' + k, label: k }));
       if (group === '기타') return ctx.config.others.map(o => ({ value: o, label: o }));
-      const n = ctx.config.grades[Number(group) - 1] || 0;
-      return Array.from({ length: n }, (_, i) => ({ value: `${group}-${i + 1}`, label: `${i + 1}반` }));
+      const i = ctx.config.grades.findIndex((_, k) => gradeLabel(k) === group);
+      const n = i >= 0 ? ctx.config.grades[i] : 0;
+      return Array.from({ length: n }, (_, k) => ({ value: `${group}-${k + 1}`, label: `${k + 1}반` }));
     }
 
-    /** 학급 값 → 학년 묶음('6' / '유치원' / '기타'). 이 학교 설정에 그 학급이 있을 때만 쓴다(validCls). */
+    /** 학급 값 → 학년 묶음('6' / '중1' / '유치원' / '기타'). 이 학교 설정에 그 학급이 있을 때만 쓴다(validCls). */
     function groupOf(cls) {
       if (!cls) return '';
       if (cls.indexOf('유치원 ') === 0) return '유치원';
-      const m = /^(\d+)-\d+$/.exec(cls);
+      const m = /^(중?\d+)-\d+$/.exec(cls);
       return m ? m[1] : '기타';
     }
     function validCls(cls) {
@@ -454,7 +460,7 @@
     /** 학년 → 반 고르기(대여 화면과 내 정보 공용). st: { group, cls }, p: data 속성 앞말('' 대여, 'm' 내 정보) */
     function pickerHtml(st, p) {
       const gs = groups();
-      const gName = g => (g === '유치원' || g === '기타' ? g : g + '학년');
+      const gName = gradeName;
       const subLabel = st.group === '유치원' ? '유치원 반 고르기' : st.group === '기타' ? '대여처 고르기' : `${gName(st.group)} › 반 고르기`;
       return `<p class="lv">${gs.length > 1 ? '① 학년' : ''}</p>
         <div class="chips grades">${gs.map(g => `<button class="chip ${g === st.group ? 'on' : ''}" data-${p}group="${esc(g)}">${gName(g)}</button>`).join('')}</div>
