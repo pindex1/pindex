@@ -211,16 +211,8 @@
         <ul class="list" id="doneList"></ul>
       </div>
       <div id="doneFailed"></div>
-      <button class="btn ghost" id="classBtn">우리 반 대여 현황 보기</button>
+      <!-- '우리 반 대여 현황 보기'는 2026-11-16 뺐다(담임은 위쪽 '내가 빌린 기기'와 같은 목록) -->
       <button class="btn ghost" data-cam>📷 다른 기기 QR 찍기</button>
-    </div>
-
-    <!-- 학급 대여 현황 -->
-    <div id="v-class" class="hidden">
-      <div class="card">
-        <h1 id="classTitle"></h1>
-        <ul class="list" id="classList"></ul>
-      </div>
     </div>
 
     <!-- ④ 수리 중·불용: 대여 차단 -->
@@ -295,7 +287,7 @@
       <button class="btn ghost" id="invEnd">이 휴대폰 재물조사 끝내기</button>
       <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 연속으로 확인됩니다. 조사 종료는 PC 화면에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-16e</p>
+    <p class="ver">화면 버전 11-16f</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -352,12 +344,12 @@
       inv: `pindex.${S}.inv` }; // 재물조사 확인 코드(관리자 PC 화면의 재물조사 QR을 찍은 휴대폰만)
     // 위쪽 제목: '봉명초 정보기기 › 대여'. 학교명은 서버(scan)가 알려 주고, 다음에 열 때 바로 보이도록 휴대폰에 기억한다.
     const VIEW_TITLES = { register: '이름 등록', me: '내 정보', stopped: '사용 중지', rent: '대여', cart: '담기 목록', done: '대여 완료',
-      class: '우리 반 대여 현황', blocked: '대여 불가', return: '반납', bundle: '함께 반납', rdone: '반납 완료',
+      blocked: '대여 불가', return: '반납', bundle: '함께 반납', rdone: '반납 완료',
       mine: '내가 빌린 기기', inv: '재물조사' };
     let brand = load(K.brand, '정보기기'), viewName = 'loading';
     const CART_TTL = 3 * 60 * 60 * 1000;
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
-    const VIEWS = ['loading', 'register', 'me', 'stopped', 'home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone', 'mine', 'inv'];
+    const VIEWS = ['loading', 'register', 'me', 'stopped', 'home', 'rent', 'cart', 'done', 'blocked', 'return', 'bundle', 'rdone', 'mine', 'inv'];
     // 반납 상태: 화면 표시 ↔ 시트 값(STATUS.RETURN)
     // '충전기 누락'은 2026-11-12 뺐다(태블릿은 충전함에 두고 기기만 빌려 감). 충전기를 잃어버렸으면 파손·고장에 증상으로 적는다.
     const RSTATUS = [{ v: '정상', label: '정상' }, { v: '파손', label: '파손·고장' }];
@@ -384,7 +376,6 @@
     let selOpen = false;    // 대여 화면: 학급·기간 고르기를 펼쳤는지(골라져 있으면 요약 한 줄 + [바꾸기])
     let meInfo = { name: '', cls: '' }; // 이 휴대폰 사용자(이름·우리 반)
     let meSel = { group: '', cls: '', none: false }, meBack = null; // 내 정보 화면
-    let lastDone = null;
     let rStatus = '정상';   // ⑤ 한 대 반납 상태
     let bundle = [];        // ⑥ [{ loanId, deviceId, model, on, status, symptom }]
     let mine = null;        // 내가 빌린 기기 { count, overdue } — scan·대여·반납 응답에 함께 온다
@@ -813,7 +804,6 @@
     }
 
     function showDone(r) {
-      lastDone = r;
       $('doneInfo').innerHTML = (r.bundleId ? `<dt>묶음번호</dt><dd>${esc(r.bundleId)}</dd>` : '')
         + `<dt>학급</dt><dd>${esc(clsLabel(r.cls))}</dd><dt>대여자</dt><dd>${esc(r.name)}</dd>
            <dt>일시</dt><dd>${esc(r.at)}</dd><dt>반납예정</dt><dd>${r.due ? esc(pretty(r.due)) : '미정'}</dd>`;
@@ -825,25 +815,12 @@
       setDock('');
     }
 
-    async function showClass() {
-      const cls = lastDone ? lastDone.cls : sel.cls;
-      $('classTitle').textContent = `${clsLabel(cls)} 대여 현황`;
-      $('classList').innerHTML = '<li class="muted">불러오는 중…</li>';
-      show('class');
-      try {
-        const list = await call('getClassLoans', userId(), cls);
-        $('classList').innerHTML = list.length ? list.map(l => `<li><div><div>${esc(l.model)}</div><div class="id">${esc(l.deviceId)} · ${esc(l.borrower)}</div></div>
-            <span class="badge ${l.overdue ? 'b-err' : 'b-acc'}">${l.due ? (l.overdue ? '예정일 지남 ' : '') + esc(pretty(l.due)) : '미정'}</span></li>`).join('')
-          : '<li class="muted">지금 빌린 기기가 없습니다.</li>';
-      } catch (e) { fail(e); }
-    }
-    $('classBtn').onclick = showClass;
     $('toCartBtn').onclick = () => showCart();
     $('toCartBtn2').onclick = () => showCart();
 
     // ---------- 내가 빌린 기기(2026-11-16) ----------
     // 교사는 QR로만 들어오므로, 찍어서 열리는 화면 위쪽에 한 줄로 보여 준다(빌린 기기가 있을 때만).
-    const MINE_VIEWS = ['home', 'rent', 'cart', 'done', 'class', 'blocked', 'return', 'bundle', 'rdone'];
+    const MINE_VIEWS = ['home', 'rent', 'cart', 'done', 'blocked', 'return', 'bundle', 'rdone'];
     function setMine(m) { if (m) mine = m; renderMineBar(); }
     function renderMineBar() {
       const on = !!(mine && mine.count > 0 && !invToken() && MINE_VIEWS.indexOf(viewName) >= 0);
