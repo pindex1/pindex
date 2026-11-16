@@ -113,6 +113,11 @@
     .scanres.info { background: rgba(255,255,255,.92); color: var(--ink); }
     .scanres.warn { background: var(--warn); color: #fff; }
     .scanres.err { background: var(--err); color: #fff; }
+    .scanner .invtop { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+      width: min(80vw, 300px); padding: 10px 16px 12px; border-radius: 14px; background: rgba(255,255,255,.95); color: var(--ink);
+      text-align: center; font-size: 15px; }
+    .scanner .invtop .lbl { font-size: 12px; font-weight: 700; color: var(--accent); }
+    .scanner .invtop b { font-size: 26px; font-variant-numeric: tabular-nums; }
 
     /* 내가 빌린 기기(2026-11-16): QR을 찍어 들어온 화면 위쪽 한 줄 */
     .minebar { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; margin-bottom: 12px;
@@ -284,9 +289,9 @@
       <div id="invResult"></div>
       <button class="btn" data-cam>📷 기기 QR 찍기</button>
       <button class="btn ghost" id="invEnd">이 휴대폰 재물조사 끝내기</button>
-      <p class="muted" style="margin-top:12px">카메라를 켜 두면 기기 QR을 차례로 비추기만 해도 하나씩 확인됩니다. 조사 전체는 PC 화면에서 끝냅니다.</p>
+      <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 연속으로 확인됩니다. 조사 종료는 PC 화면에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-16b</p>
+    <p class="ver">화면 버전 11-16c</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -304,6 +309,12 @@
   <div class="scanner hidden" id="scanner">
     <video id="scanVideo" playsinline muted></video>
     <div class="frame"></div>
+    <!-- 재물조사: 카메라를 켠 동안 진행 숫자를 위쪽에 늘 보여 준다 -->
+    <div class="invtop hidden" id="invTop">
+      <div class="lbl">재물조사</div>
+      <div><b id="invTopNum">0</b> / <span id="invTopTarget">0</span>대 확인</div>
+      <div class="pbar"><i id="invTopBar"></i></div>
+    </div>
     <div class="bar">
       <div class="scanres hidden" id="scanRes"></div>
       <p id="scanMsg"></p>
@@ -875,6 +886,7 @@
       if (r.name) $('who').textContent = r.name + ' 님';
       inv.checked = r.checked;
       inv.target = r.target;
+      renderInvCount();
       if (r.device) {
         inv.last = r;
         inv.seen.add(r.device.id);
@@ -883,7 +895,7 @@
     }
     function invResultHtml(r, errMsg) {
       if (errMsg) return `<div class="card"><div class="notice n-err" style="margin:0">${esc(errMsg)}</div></div>`;
-      if (!r) return '<div class="card"><p class="muted" style="margin:0">보관함 기기의 QR을 차례로 찍어 주세요. 찍을 때마다 PC 화면에 바로 반영됩니다.</p></div>';
+      if (!r) return '<div class="card"><p class="muted" style="margin:0">기기 QR을 차례로 찍어 주세요. PC 화면에 바로 반영됩니다.</p></div>';
       const d = r.device;
       const head = r.odd
         ? `<div class="notice n-warn">${d.state === '대여 중'
@@ -892,11 +904,16 @@
         : r.already ? '<div class="notice n-info">이미 확인한 기기입니다.</div>' : '<div class="big-ok">✓ 확인</div>';
       return `<div class="card">${head}${devHtml(d)}</div>`;
     }
+    /** 진행 숫자: 재물조사 화면과 카메라 화면 위쪽(늘 보임) 두 곳에 */
+    function renderInvCount() {
+      const pct = (inv.target ? Math.min(100, Math.round(inv.checked / inv.target * 100)) : 0) + '%';
+      $('invNum').textContent = $('invTopNum').textContent = inv.checked;
+      $('invTarget').textContent = $('invTopTarget').textContent = inv.target;
+      $('invBar').style.width = $('invTopBar').style.width = pct;
+    }
     function showInv(errMsg) {
       $('rescan').classList.add('hidden');
-      $('invNum').textContent = inv.checked;
-      $('invTarget').textContent = inv.target;
-      $('invBar').style.width = (inv.target ? Math.min(100, Math.round(inv.checked / inv.target * 100)) : 0) + '%';
+      renderInvCount();
       $('invResult').innerHTML = invResultHtml(inv.last, errMsg);
       show('inv');
       setDock('');
@@ -906,11 +923,12 @@
       $('scanRes').className = 'scanres ' + cls;
       $('scanRes').textContent = text;
     }
+    // 진행 숫자는 위쪽에 늘 보이므로 결과 줄에는 기기만
     function invShort(r) {
-      const d = r.device, name = d.alias || d.model || d.id, n = ` (${r.checked}/${r.target})`;
-      if (r.odd) scanRes('warn', `⚠ ${name} — ${d.state}${ro(d.state)} 기록된 기기${n}`);
-      else if (r.already) scanRes('info', `${name} — 이미 확인함${n}`);
-      else scanRes('ok', `✓ ${name} 확인${n}`);
+      const d = r.device, name = d.alias || d.model || d.id;
+      if (r.odd) scanRes('warn', `⚠ ${name} — ${d.state}${ro(d.state)} 기록된 기기`);
+      else if (r.already) scanRes('info', `${name} — 이미 확인함`);
+      else scanRes('ok', `✓ ${name} 확인`);
     }
     /** 이 휴대폰의 재물조사 모드를 끝내고 평소 화면으로. */
     function endInvMode(text) {
@@ -948,7 +966,7 @@
       if (invBusy || Date.now() - (inv.failAt[id] || 0) < 5000) return again();
       if (inv.seen.has(id)) {
         // 같은 QR을 계속 비추고 있으면 서버에 다시 묻지 않는다
-        if (invShownId !== id) { invShownId = id; scanRes('info', `${inv.names[id] || id} — 이미 확인함 (${inv.checked}/${inv.target})`); }
+        if (invShownId !== id) { invShownId = id; scanRes('info', `${inv.names[id] || id} — 이미 확인함`); }
         return again();
       }
       invShownId = id;
@@ -1079,6 +1097,8 @@
       $('scanMsg').textContent = '카메라를 켜는 중…';
       $('scanRes').className = 'scanres hidden';
       invShownId = '';
+      $('invTop').classList.toggle('hidden', !invToken());
+      if (invToken()) renderInvCount();
       $('scanner').classList.remove('hidden');
       try {
         scanStream = await navigator.mediaDevices.getUserMedia({
@@ -1110,7 +1130,7 @@
       }
       if (!scanStream) return; // 그사이 닫힘
       $('scanMsg').textContent = invToken()
-        ? '재물조사: 기기 QR을 차례로 네모 안에 비춰 주세요. 다 찍었으면 닫기.'
+        ? '기기 QR을 차례로 네모 안에 비춰 주세요'
         : '기기의 QR을 네모 안에 맞춰 주세요. 흐리면 휴대폰을 조금 떼어 주세요.';
       scanTick();
     }
