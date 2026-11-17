@@ -9,7 +9,7 @@
     // 스크립트 오류가 나도 흰 화면 대신 문구가 보이게
     window.addEventListener('error', function (e) {
       var el = document.getElementById('err');
-      if (el) el.textContent = '화면 오류: ' + (e.message || '알 수 없음') + ' — 새로고침해 보고, 계속되면 관리자에게 알려 주세요.';
+      if (el) el.textContent = '화면 오류가 났습니다. 새로고침해도 계속되면 관리자에게 알려 주세요. (' + (e.message || '알 수 없음') + ')';
     });
   </script>
   <style>
@@ -111,7 +111,7 @@
     .scanner .ring { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border: 2px solid #FFD54F; border-radius: 50%;
       pointer-events: none; animation: ring 1s ease-out forwards; }
     @keyframes ring { 0% { transform: scale(1.5); opacity: 1; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
-    /* 재물조사 모드: 카메라를 켠 채 이어 찍고 결과를 여기에 */
+    /* 기기 점검 모드: 카메라를 켠 채 이어 찍고 결과를 여기에 */
     .scanner .scanres { display: inline-block; max-width: 420px; margin: 0 auto 10px; padding: 8px 14px; border-radius: 12px; font-size: 16px; font-weight: 700; }
     .scanres.ok { background: var(--ok); color: #fff; }
     .scanres.info { background: rgba(255,255,255,.92); color: var(--ink); }
@@ -130,7 +130,7 @@
     .minebar .od { color: var(--err); font-weight: 600; }
     .minebar .go { color: var(--muted); }
 
-    /* 재물조사 모드 */
+    /* 기기 점검 모드 */
     .invhead { border-color: var(--accent); }
     .invhead .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .invhead .num small { font-size: 15px; color: var(--muted); font-weight: 500; }
@@ -146,15 +146,15 @@
     <div id="rescan" class="notice n-warn hidden"></div>
     <div id="err" class="err"></div>
 
-    <div id="v-loading" class="card"><p class="muted">확인하는 중…</p></div>
+    <div id="v-loading" class="card"><p class="muted">불러오는 중…</p></div>
 
     <!-- 처음 쓰는 휴대폰: 이름 등록 -->
     <div id="v-register" class="card hidden">
-      <h1>처음 사용하시나요?</h1>
-      <p class="muted">이름을 한 번만 등록하면 이 휴대폰으로 바로 대여·반납할 수 있습니다. 기록에 이 이름이 남습니다.</p>
+      <h1>이름 등록</h1>
+      <p class="muted">처음 한 번만 등록합니다. 대여·반납 기록에 이 이름이 남습니다.</p>
       <label for="name">이름 (예: 김하늘)</label>
       <input id="name" maxlength="30" autocomplete="name">
-      <button class="btn" id="registerBtn">등록하고 시작</button>
+      <button class="btn" id="registerBtn">등록</button>
     </div>
 
     <!-- 내 정보(이름·우리 반). 처음 등록한 뒤 한 번은 '우리 반을 골라 주세요'로 나온다 -->
@@ -163,7 +163,7 @@
       <p class="muted" id="meSub"></p>
       <label for="meName">이름</label>
       <input id="meName" maxlength="30" autocomplete="name">
-      <h2>우리 반 <span class="muted" style="font-weight:400">(담임 학급 — 대여할 때 미리 골라져 나옵니다)</span></h2>
+      <h2>우리 반 <span class="muted" style="font-weight:400">(대여할 때 기본으로 선택)</span></h2>
       <div class="mesel"></div>
       <button class="btn" id="meSave" style="margin-top:12px">저장</button>
       <button class="btn ghost" id="meCancel">취소</button>
@@ -178,8 +178,8 @@
 
     <!-- QR 없이 들어옴 -->
     <div id="v-home" class="card hidden">
-      <h1>기기의 QR을 찍어 주세요</h1>
-      <p class="muted">아래 버튼을 누르거나 휴대폰 기본 카메라로 기기에 붙은 QR을 찍으면 대여·반납 화면이 열립니다.</p>
+      <h1>기기 QR을 찍어 주세요</h1>
+      <p class="muted">아래 버튼이나 휴대폰 카메라로 기기의 QR을 찍으면 대여·반납 화면이 열립니다.</p>
       <button class="btn" data-cam>📷 QR 찍기</button>
     </div>
 
@@ -196,7 +196,7 @@
         <h2 id="cartTitle"></h2>
         <ul class="list" id="cartList"></ul>
       </div>
-      <div class="notice n-info">아래 <b>📷 다음 기기 QR 찍기</b>를 누르고 다음 기기를 찍으면 이 목록에 계속 담깁니다.</div>
+      <div class="notice n-info">다음 기기를 찍으면 이 목록에 더해집니다.</div>
       <div class="card sel"></div>
     </div>
 
@@ -219,9 +219,9 @@
     <div id="v-blocked" class="hidden">
       <div class="card" id="blockedDev"></div>
       <div class="card" id="blockedInfo"></div>
-      <div class="notice n-info">대여할 수 없는 기기입니다. 다른 기기의 QR을 찍어 주세요.</div>
+      <div class="notice n-info">대여할 수 없는 기기입니다.</div>
       <button class="btn" data-cam>📷 다른 기기 QR 찍기</button>
-      <button class="btn ghost hidden" id="toCartBtn">담기 목록 보기</button>
+      <button class="btn ghost hidden" id="toCartBtn">담은 기기 보기</button>
     </div>
 
     <!-- ⑤ 반납 -->
@@ -229,7 +229,7 @@
       <div class="card" id="returnDev"></div>
       <div class="card"><h2>대여 정보</h2><dl id="returnInfo"></dl></div>
       <div class="card">
-        <h2>기기 상태는 어떤가요?</h2>
+        <h2>기기 상태</h2>
         <div class="chips" id="returnStatus"></div>
         <div id="symptomBox" class="hidden">
           <label for="symptom" class="muted">증상 (예: 화면 깨짐, 충전 안 됨)</label>
@@ -241,14 +241,14 @@
         <p class="muted" id="bundleList"></p>
         <button class="btn ghost" id="bundleBtn">같이 반납하기</button>
       </div>
-      <button class="btn ghost hidden" id="toCartBtn2">담기 목록 보기</button>
+      <button class="btn ghost hidden" id="toCartBtn2">담은 기기 보기</button>
     </div>
 
     <!-- ⑥ 묶음 반납 -->
     <div id="v-bundle" class="hidden">
       <div class="card">
         <h1 id="bTitle"></h1>
-        <p class="muted">빼고 싶은 기기는 체크를 풀면 대여 중으로 남습니다. 상태 버튼을 누르면 정상 ↔ 파손·고장으로 바뀝니다.</p>
+        <p class="muted">체크를 풀면 그 기기는 반납하지 않습니다. 상태를 누르면 정상과 파손·고장이 바뀝니다.</p>
         <ul class="list" id="bList"></ul>
       </div>
     </div>
@@ -268,26 +268,26 @@
     <div id="v-mine" class="hidden">
       <div class="card">
         <h1 id="mineTitle">내가 빌린 기기</h1>
-        <p class="muted">이 휴대폰(내 이름)으로 빌리고 아직 반납하지 않은 기기입니다. 반납할 때는 기기의 QR을 찍어 주세요.</p>
+        <p class="muted">아직 반납하지 않은 기기입니다. 반납할 때는 기기 QR을 찍어 주세요.</p>
         <ul class="list" id="mineList"></ul>
       </div>
       <button class="btn" data-cam>📷 반납할 기기 QR 찍기</button>
       <button class="btn ghost" id="mineClose">닫기</button>
     </div>
 
-    <!-- 재물조사 모드(관리자 PC 화면의 재물조사 QR을 찍은 휴대폰만) -->
+    <!-- 기기 점검 모드(관리자 PC 화면의 기기 점검 QR을 찍은 휴대폰만) -->
     <div id="v-inv" class="hidden">
       <div class="card invhead">
-        <span class="badge b-acc">재물조사 중</span>
+        <span class="badge b-acc">기기 점검 중</span>
         <div class="num" style="margin-top:6px"><span id="invNum">0</span> <small>/ <span id="invTarget">0</span>대 확인</small></div>
         <div class="pbar"><i id="invBar"></i></div>
       </div>
       <div id="invResult"></div>
       <button class="btn" data-cam>📷 기기 QR 찍기</button>
-      <button class="btn ghost" id="invEnd">이 휴대폰 재물조사 끝내기</button>
-      <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 연속으로 확인됩니다. 조사 종료는 PC 화면에서 합니다.</p>
+      <button class="btn ghost" id="invEnd">이 휴대폰 점검 끝내기</button>
+      <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 됩니다. 점검 종료는 PC에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-16f</p>
+    <p class="ver">화면 버전 11-17b</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -305,9 +305,9 @@
   <div class="scanner hidden" id="scanner">
     <video id="scanVideo" playsinline muted></video>
     <div class="frame"></div>
-    <!-- 재물조사: 카메라를 켠 동안 진행 숫자를 위쪽에 늘 보여 준다 -->
+    <!-- 기기 점검: 카메라를 켠 동안 진행 숫자를 위쪽에 늘 보여 준다 -->
     <div class="invtop hidden" id="invTop">
-      <div class="lbl">재물조사</div>
+      <div class="lbl">기기 점검</div>
       <div><b id="invTopNum">0</b> / <span id="invTopTarget">0</span>대 확인</div>
       <div class="pbar"><i id="invTopBar"></i></div>
     </div>
@@ -341,11 +341,11 @@
     // 학교(배포)마다 따로 저장
     const K = { user: `pindex.${S}.userId`, cart: `pindex.${S}.cart`, last: `pindex.${S}.last`, recent: `pindex.${S}.recent`, brand: `pindex.${S}.brand`,
       askedCls: `pindex.${S}.askedCls`, // askedCls: 우리 반을 한 번 물어봤는지(건너뛰어도 다시 묻지 않게)
-      inv: `pindex.${S}.inv` }; // 재물조사 확인 코드(관리자 PC 화면의 재물조사 QR을 찍은 휴대폰만)
+      inv: `pindex.${S}.inv` }; // 기기 점검 확인 코드(관리자 PC 화면의 기기 점검 QR을 찍은 휴대폰만)
     // 위쪽 제목: '봉명초 정보기기 › 대여'. 학교명은 서버(scan)가 알려 주고, 다음에 열 때 바로 보이도록 휴대폰에 기억한다.
-    const VIEW_TITLES = { register: '이름 등록', me: '내 정보', stopped: '사용 중지', rent: '대여', cart: '담기 목록', done: '대여 완료',
-      blocked: '대여 불가', return: '반납', bundle: '함께 반납', rdone: '반납 완료',
-      mine: '내가 빌린 기기', inv: '재물조사' };
+    const VIEW_TITLES = { register: '이름 등록', me: '내 정보', stopped: '사용 중지', rent: '대여', cart: '담은 기기', done: '대여 완료',
+      blocked: '대여 불가', return: '반납', bundle: '묶음 반납', rdone: '반납 완료',
+      mine: '내가 빌린 기기', inv: '기기 점검' };
     let brand = load(K.brand, '정보기기'), viewName = 'loading';
     const CART_TTL = 3 * 60 * 60 * 1000;
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
@@ -381,7 +381,7 @@
     let mine = null;        // 내가 빌린 기기 { count, overdue } — scan·대여·반납 응답에 함께 온다
     let mineBack = null;    // 내가 빌린 기기 화면을 닫으면 돌아갈 화면
 
-    // 재물조사 확인 코드: 주소(?inv=)로 들어오면 휴대폰에 기억하고 주소에서는 지운다(새로고침해도 다시 켜지지 않게)
+    // 기기 점검 확인 코드: 주소(?inv=)로 들어오면 휴대폰에 기억하고 주소에서는 지운다(새로고침해도 다시 켜지지 않게)
     const INV_RE = /^[0-9a-f]{32}$/;
     function invToken() { return load(K.inv, ''); }
     if (S && INV_RE.test(params.get('inv') || '')) {
@@ -477,7 +477,7 @@
         const wk = d.getDay() === 0 || d.getDay() === 6;
         const hol = ctx.config.holidays[ymd(d)];
         if (!wk && !hol) break;
-        if (!note) note = (wk ? '주말' : hol) + ' 넘김';
+        if (!note) note = (wk ? '주말' : hol) + ' 제외';
         d.setDate(d.getDate() + 1);
       }
       return { date: ymd(d), note: note };
@@ -489,6 +489,15 @@
       if (ch < 0xAC00 || ch > 0xD7A3) return '로';
       const jong = (ch - 0xAC00) % 28;
       return jong === 0 || jong === 8 ? '로' : '으로';
+    }
+    /** 받침 있으면 '은', 없으면 '는'('은(는)'처럼 쓰지 않게). 숫자로 끝나면 읽는 소리로. */
+    function eun(word) {
+      const s = String(word || '');
+      const last = s.charAt(s.length - 1);
+      if (/\d/.test(last)) return '013678'.indexOf(last) >= 0 ? '은' : '는';
+      const ch = s.charCodeAt(s.length - 1);
+      if (ch < 0xAC00 || ch > 0xD7A3) return '은(는)';
+      return (ch - 0xAC00) % 28 ? '은' : '는';
     }
     // 학급 값: '6-2' 또는 초중학교 중학년 '중1-2'(2026-11-16). 화면에는 '6-2반'·'중1-2반'
     function clsLabel(cls) { return /^(중)?\d+-\d+$/.test(cls) ? cls + '반' : cls; }
@@ -539,7 +548,7 @@
     // 학급이 골라져 있으면(우리 반 또는 지난번 값) 요약 한 줄 + [바꾸기]만 보이고, 누르면 펼친다(2026-11-12)
     function selHtml() {
       const due = dueFor(sel.period);
-      const dueHtml = `<div class="due">${due.date ? `반납예정 ${pretty(due.date)}` : '반납예정일 없음(미정)'}
+      const dueHtml = `<div class="due">${due.date ? `반납 예정 ${pretty(due.date)}` : '반납일 미정'}
           ${due.note ? `<span class="badge b-warn">${esc(due.note)}</span>` : ''}</div>`;
       if (!selOpen && sel.cls) {
         return `<div class="selsum"><div style="min-width:0">
@@ -547,8 +556,8 @@
             ${dueHtml}</div>
           <button class="chip" data-open="1">바꾸기</button></div>`;
       }
-      return `<h2>어느 반이 빌리나요?</h2>${pickerHtml(sel, '')}
-        <h2 style="margin-top:4px">언제까지 쓰나요?</h2>
+      return `<h2>대여 학급</h2>${pickerHtml(sel, '')}
+        <h2 style="margin-top:4px">대여 기간</h2>
         <div class="chips">${Object.keys(PERIODS).map(p => `<button class="chip ${p === sel.period ? 'on' : ''}" data-period="${p}">${p}</button>`).join('')}</div>
         ${dueHtml}`;
     }
@@ -585,8 +594,8 @@
       meSel = validCls(meInfo.cls) ? { group: groupOf(meInfo.cls), cls: meInfo.cls, none: false } : { group: '', cls: '', none: !first && !meInfo.cls };
       $('meTitle').textContent = first ? '우리 반을 골라 주세요' : '내 정보';
       $('meSub').textContent = first
-        ? "고른 반이 대여할 때 미리 골라져 나옵니다. 담임 학급이 없으면 '우리 반 없음'을 누르세요. 나중에 위쪽 이름을 눌러 바꿀 수 있습니다."
-        : '이름과 우리 반을 바꿀 수 있습니다. 지난 대여기록의 이름은 그대로 남습니다.';
+        ? "대여할 때 기본으로 선택됩니다. 담임이 아니면 '우리 반 없음'을 누르세요. 위쪽 이름을 눌러 언제든 바꿀 수 있습니다."
+        : '이름을 바꿔도 지난 기록의 이름은 그대로입니다.';
       $('meName').value = meInfo.name;
       $('meCancel').textContent = first ? '나중에 하기' : '취소';
       renderMeSel();
@@ -596,7 +605,7 @@
     }
     function renderMeSel() {
       document.querySelector('.mesel').innerHTML = pickerHtml(meSel, 'm')
-        + `<button class="chip ${meSel.none ? 'on' : ''}" data-mnone="1">우리 반 없음(교과·행정 등)</button>`;
+        + `<button class="chip ${meSel.none ? 'on' : ''}" data-mnone="1">우리 반 없음 (교과·행정)</button>`;
       aimTips();
     }
     document.addEventListener('click', e => {
@@ -651,7 +660,7 @@
       $('camBtn').classList.toggle('hidden', dockMode !== 'cart');
       $('mainBtn').disabled = !sel.cls;
       if (dockMode === 'return') {
-        $('dockSum').textContent = rStatus === '파손' ? '수리 접수 후 기기는 수리 상태가 됩니다' : '';
+        $('dockSum').textContent = rStatus === '파손' ? '반납과 함께 수리 접수됩니다' : '';
         $('mainBtn').textContent = rStatus === '파손' ? '반납하고 수리 접수' : '반납하기';
         $('mainBtn').disabled = false;
         $('subBtn').classList.add('hidden');
@@ -669,14 +678,14 @@
       if (dockMode === 'rent') {
         $('dockSum').textContent = sum;
         $('mainBtn').textContent = sel.cls ? `${clsLabel(sel.cls)}${ro(clsLabel(sel.cls))} 대여하기` : '대여하기';
-        $('subBtn').textContent = '담아두고 더 찍기';
+        $('subBtn').textContent = '담고 더 찍기';
         $('subBtn').classList.remove('hidden');
       } else if (dockMode === 'cart') {
         const n = getCart().length;
         $('dockSum').textContent = sum;
-        $('mainBtn').textContent = `${n}대 한 번에 대여하기`;
+        $('mainBtn').textContent = `${n}대 대여하기`;
         $('mainBtn').disabled = !sel.cls || n === 0;
-        $('subBtn').textContent = '목록 비우기';
+        $('subBtn').textContent = '모두 빼기';
         $('subBtn').classList.toggle('hidden', n === 0);
       }
     }
@@ -693,10 +702,10 @@
     function showCart(notice) {
       const items = getCart();
       $('cartNotice').innerHTML = notice ? `<div class="notice ${notice.cls}">${esc(notice.text)}</div>` : '';
-      $('cartTitle').textContent = `담기 목록 ${items.length}대`;
+      $('cartTitle').textContent = `담은 기기 ${items.length}대`;
       $('cartList').innerHTML = items.length ? items.map(d => `<li><div><div>${esc(d.alias || d.model)}</div>
           <div class="id">${esc(d.id)}</div></div><button class="x" data-remove="${esc(d.id)}">빼기</button></li>`).join('')
-        : '<li class="muted">담긴 기기가 없습니다.</li>';
+        : '<li class="muted">담은 기기가 없습니다.</li>';
       renderSel();
       show('cart');
       setDock('cart');
@@ -714,7 +723,7 @@
       $('blockedInfo').innerHTML = isRepair(d.state)
         ? `<h2>고장 신고 내용</h2>${r ? `<dl><dt>증상</dt><dd>${esc(r.symptom || '-')}</dd><dt>처리 상태</dt><dd><span class="badge b-warn">${esc(r.status || '접수')}</span></dd>
             <dt>신고</dt><dd>${esc(r.at)} ${esc(r.reporter)}</dd></dl>` : '<p class="muted">수리 기록이 없습니다.</p>'}`
-        : '<h2>불용 기기</h2><p class="muted">불용 처리되어 더 이상 대여하지 않는 기기입니다.</p>';
+        : '<h2>불용 기기</h2><p class="muted">불용 처리된 기기입니다.</p>';
       $('toCartBtn').classList.toggle('hidden', !getCart().length);
       show('blocked');
       setDock('');
@@ -794,7 +803,7 @@
       const count = s => r.devices.filter(d => d.status === s).length;
       $('rdoneInfo').innerHTML = `<dt>반납자</dt><dd>${esc(r.name)}</dd><dt>일시</dt><dd>${esc(r.at)}</dd>`;
       $('rdoneSum').innerHTML = [
-        ['정상', '보관 중으로', 'b-ok'], ['파손', '수리 접수', 'b-err'],
+        ['정상', '보관 중', 'b-ok'], ['파손', '수리 접수', 'b-err'],
       ].filter(([s]) => count(s)).map(([s, what, cls]) => `<li><span>${rLabel(s)} ${count(s)}대</span><span class="badge ${cls}">${what}</span></li>`).join('');
       $('rdoneList').innerHTML = r.devices.map(d => `<li><div><div>${esc(d.model)}</div><div class="id">${esc(d.id)}</div></div><span class="muted">${rLabel(d.status)}</span></li>`).join('');
       $('rdoneFailed').innerHTML = r.failed.length
@@ -806,8 +815,8 @@
     function showDone(r) {
       $('doneInfo').innerHTML = (r.bundleId ? `<dt>묶음번호</dt><dd>${esc(r.bundleId)}</dd>` : '')
         + `<dt>학급</dt><dd>${esc(clsLabel(r.cls))}</dd><dt>대여자</dt><dd>${esc(r.name)}</dd>
-           <dt>일시</dt><dd>${esc(r.at)}</dd><dt>반납예정</dt><dd>${r.due ? esc(pretty(r.due)) : '미정'}</dd>`;
-      $('doneCount').textContent = `빌린 기기 ${r.devices.length}대`;
+           <dt>일시</dt><dd>${esc(r.at)}</dd><dt>반납 예정일</dt><dd>${r.due ? esc(pretty(r.due)) : '미정'}</dd>`;
+      $('doneCount').textContent = `대여 기기 ${r.devices.length}대`;
       $('doneList').innerHTML = r.devices.map(d => `<li><span>${esc(d.model)}</span><span class="id">${esc(d.id)}</span></li>`).join('');
       $('doneFailed').innerHTML = r.failed.length
         ? `<div class="notice n-err">대여하지 못한 기기 ${r.failed.length}대: ${r.failed.map(f => `${esc(f.id)}(${esc(f.reason)})`).join(', ')}</div>` : '';
@@ -842,7 +851,7 @@
         $('mineList').innerHTML = list.length ? list.map(l => `<li><div><div>${esc(l.model || l.deviceId)}</div>
             <div class="id">${esc(l.deviceId)} · ${esc(clsLabel(l.cls))}</div></div>
             <span class="badge ${l.overdue ? 'b-err' : 'b-acc'}">${l.due ? (l.overdue ? '예정일 지남 ' : '') + esc(pretty(l.due)) : '미정'}</span></li>`).join('')
-          : '<li class="muted">지금 빌린 기기가 없습니다.</li>';
+          : '<li class="muted">빌린 기기가 없습니다.</li>';
       } catch (e) { fail(e); }
     }
     $('mineBar').onclick = showMine;
@@ -853,8 +862,8 @@
       setDock(b.dock);
     };
 
-    // ---------- 재물조사 모드(2026-11-16) ----------
-    // 관리자 PC 화면의 재물조사 QR을 찍은 휴대폰만. 기기 QR을 찍으면 대여·반납 대신 '확인'으로 기록한다.
+    // ---------- 기기 점검 모드(2026-11-16) ----------
+    // 관리자 PC 화면의 기기 점검 QR을 찍은 휴대폰만. 기기 QR을 찍으면 대여·반납 대신 '확인'으로 기록한다.
     // 화면 안 카메라는 끄지 않고 이어 찍는다(찍을 때마다 아래에 결과 한 줄).
     function flash(text) {
       $('flash').textContent = text;
@@ -880,12 +889,12 @@
       const d = r.device;
       const head = r.odd
         ? `<div class="notice n-warn">${d.state === '대여 중'
-            ? `대여 중으로 기록된 기기입니다${d.loan ? ` (${esc(clsLabel(d.loan.cls))} · ${esc(d.loan.borrower)})` : ''}. 반납 처리가 빠졌을 수 있어요 — 관리자 화면에서 확인해 주세요.`
-            : `${esc(d.state)}${ro(d.state)} 기록된 기기입니다. 관리자 화면에서 확인해 주세요.`}</div>`
+            ? `대여 중으로 되어 있는 기기입니다${d.loan ? ` (${esc(clsLabel(d.loan.cls))} · ${esc(d.loan.borrower)})` : ''}. 반납 처리가 빠졌는지 확인해 주세요.`
+            : `${esc(d.state)}${ro(d.state)} 되어 있는 기기입니다. 확인이 필요합니다.`}</div>`
         : r.already ? '<div class="notice n-info">이미 확인한 기기입니다.</div>' : '<div class="big-ok">✓ 확인</div>';
       return `<div class="card">${head}${devHtml(d)}</div>`;
     }
-    /** 진행 숫자: 재물조사 화면과 카메라 화면 위쪽(늘 보임) 두 곳에 */
+    /** 진행 숫자: 기기 점검 화면과 카메라 화면 위쪽(늘 보임) 두 곳에 */
     function renderInvCount() {
       const pct = (inv.target ? Math.min(100, Math.round(inv.checked / inv.target * 100)) : 0) + '%';
       $('invNum').textContent = $('invTopNum').textContent = inv.checked;
@@ -907,11 +916,11 @@
     // 진행 숫자는 위쪽에 늘 보이므로 결과 줄에는 기기만
     function invShort(r) {
       const d = r.device, name = d.alias || d.model || d.id;
-      if (r.odd) scanRes('warn', `⚠ ${name} — ${d.state}${ro(d.state)} 기록된 기기`);
-      else if (r.already) scanRes('info', `${name} — 이미 확인함`);
+      if (r.odd) scanRes('warn', `확인 필요: ${name} (${d.state})`);
+      else if (r.already) scanRes('info', `${name} 이미 확인`);
       else scanRes('ok', `✓ ${name} 확인`);
     }
-    /** 이 휴대폰의 재물조사 모드를 끝내고 평소 화면으로. */
+    /** 이 휴대폰의 기기 점검 모드를 끝내고 평소 화면으로. */
     function endInvMode(text) {
       try { localStorage.removeItem(K.inv); } catch (e) {}
       inv = { checked: 0, target: 0, last: null, seen: new Set(), names: {}, failAt: {} };
@@ -922,12 +931,12 @@
       start();
     }
     $('invEnd').onclick = () => {
-      if (!confirm('이 휴대폰의 재물조사 모드를 끝낼까요?\n(재물조사 전체는 PC 화면에서 끝냅니다)')) return;
-      endInvMode('재물조사 모드를 끝냈습니다. 평소처럼 대여·반납할 수 있습니다.');
+      if (!confirm('이 휴대폰의 점검 모드를 끝낼까요?\n(점검 전체 종료는 PC에서 합니다)')) return;
+      endInvMode('점검 모드를 끝냈습니다.');
     };
-    const ENDED_TEXT = '재물조사가 끝나 평소 화면으로 돌아왔습니다. 새 재물조사라면 PC 화면의 QR을 다시 찍어 주세요.';
+    const ENDED_TEXT = '기기 점검이 끝났습니다. 다시 점검하려면 PC 화면의 QR을 찍어 주세요.';
 
-    /** 재물조사 모드에서 화면을 열 때(주소의 id가 있으면 그 기기 확인). */
+    /** 기기 점검 모드에서 화면을 열 때(주소의 id가 있으면 그 기기 확인). */
     async function startInv() {
       try {
         const r = await call('inventoryCheck', userId(), invToken(), deviceId);
@@ -941,20 +950,20 @@
       }
     }
 
-    /** 재물조사 모드에서 화면 안 카메라로 찍었을 때: 카메라를 끄지 않고 이어 찍는다. */
+    /** 기기 점검 모드에서 화면 안 카메라로 찍었을 때: 카메라를 끄지 않고 이어 찍는다. */
     async function onInvScanned(id) {
       const again = () => { scanTimer = setTimeout(scanTick, 150); };
       if (invBusy || Date.now() - (inv.failAt[id] || 0) < 5000) return again();
       if (inv.seen.has(id)) {
         // 같은 QR을 계속 비추고 있으면 서버에 다시 묻지 않는다
-        if (invShownId !== id) { invShownId = id; scanRes('info', `${inv.names[id] || id} — 이미 확인함`); }
+        if (invShownId !== id) { invShownId = id; scanRes('info', `${inv.names[id] || id} 이미 확인`); }
         return again();
       }
       invShownId = id;
       lastFocusAt = Date.now(); // 방금 읽었으니 초점은 그대로
       if (navigator.vibrate) navigator.vibrate(60);
       invBusy = true;
-      scanRes('info', '확인하는 중…');
+      scanRes('info', '확인 중…');
       again();
       try {
         const r = await call('inventoryCheck', userId(), invToken(), id);
@@ -969,7 +978,7 @@
       }
     }
 
-    /** 재물조사 QR(?s=…&inv=코드)이면 코드, 아니면 ''. */
+    /** 기기 점검 QR(?s=…&inv=코드)이면 코드, 아니면 ''. */
     function invFromQr(text) {
       try {
         const u = new URL(String(text).trim());
@@ -1018,7 +1027,7 @@
         showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
         openScanner(); // 담고 바로 다음 기기 찍기
       } else if (dockMode === 'cart') {
-        if (confirm('담기 목록을 비울까요?')) { setCart([]); showCart(); }
+        if (confirm('담은 기기를 모두 뺄까요?')) { setCart([]); showCart(); }
       }
     };
 
@@ -1031,18 +1040,19 @@
       const t = d && load(K.recent, {})[d.id];
       const ago = t ? Math.round((Date.now() - t) / 1000) : Infinity;
       $('rescan').classList.toggle('hidden', ago > ctx.config.rescanSec);
-      if (ago <= ctx.config.rescanSec) $('rescan').textContent = `${ago}초 전에 처리한 기기입니다. 두 번 처리하지 않도록 확인해 주세요.`;
+      if (ago <= ctx.config.rescanSec) $('rescan').textContent = `${ago}초 전에 처리한 기기입니다. 중복 처리에 주의해 주세요.`;
 
       if (!d) return cart.length ? showCart() : (show('home'), setDock(''));
 
       if (d.state === '보관 중') {
         if (!cart.length) return showRent();
-        if (cart.some(x => x.id === d.id)) return showCart({ cls: 'n-warn', text: `${d.alias || d.model}은(는) 이미 담겨 있습니다.` });
+        if (cart.some(x => x.id === d.id)) return showCart({ cls: 'n-warn', text: `${d.alias || d.model}${eun(d.alias || d.model)} 이미 담았습니다.` });
         setCart(cart.concat([{ id: d.id, model: d.model, alias: d.alias }]));
         return showCart({ cls: 'n-info', text: `${d.alias || d.model} 담았습니다.` });
       }
       if (cart.length && (isRepair(d.state) || d.state === '불용')) {
-        return showCart({ cls: 'n-err', text: `${d.id}은(는) ${d.state}이라 담지 않았습니다.` });
+        const nm = d.alias || d.model || d.id;
+        return showCart({ cls: 'n-err', text: `${nm}${eun(nm)} ${d.state} 상태라 담지 않았습니다.` });
       }
       if (d.state === '대여 중') {
         if (ctx.loan) return showReturn();
@@ -1073,7 +1083,7 @@
 
     async function openScanner() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        $('err').textContent = '이 브라우저에서는 화면 안 카메라를 쓸 수 없습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.';
+        $('err').textContent = '이 브라우저에서는 카메라를 켤 수 없습니다. 휴대폰 카메라 앱으로 QR을 찍어 주세요.';
         return;
       }
       $('scanMsg').textContent = '카메라를 켜는 중…';
@@ -1089,7 +1099,7 @@
         closeScanner();
         $('err').textContent = e && e.name === 'NotAllowedError'
           ? '카메라 권한이 막혀 있습니다. 주소창 왼쪽 자물쇠(사이트 설정)에서 카메라를 허용해 주세요.'
-          : '카메라를 켜지 못했습니다. 휴대폰 기본 카메라로 QR을 찍어 주세요.';
+          : '카메라를 켜지 못했습니다. 휴대폰 카메라 앱으로 QR을 찍어 주세요.';
         return;
       }
       if ($('scanner').classList.contains('hidden')) { stopStream(s); return; } // 켜는 사이 닫음
@@ -1237,8 +1247,8 @@
       refocus(frameCenter());
     }
     function scanHint() {
-      return (invToken() ? '기기 QR을 차례로 네모 안에 비춰 주세요.' : '기기의 QR을 네모 안에 맞춰 주세요.')
-        + (canFocus() ? ' 흐리면 화면을 눌러 초점을 맞춰 주세요.' : ' 흐리면 휴대폰을 조금 떼어 주세요.');
+      return (invToken() ? 'QR을 차례로 네모 안에 비춰 주세요.' : 'QR을 네모 안에 맞춰 주세요.')
+        + (canFocus() ? ' 흐리면 화면을 누르세요.' : ' 흐리면 조금 떼어 주세요.');
     }
     // 화면을 누르면 그 자리에 초점
     $('scanner').addEventListener('click', e => {
@@ -1253,7 +1263,7 @@
       refocus(toVideoPoint(e.clientX, e.clientY)).then(ok => {
         if (ok || focusTipShown) return;
         focusTipShown = true;
-        $('scanMsg').textContent = '이 휴대폰은 화면을 눌러 초점을 맞출 수 없습니다. 휴대폰을 조금 떼었다가 천천히 가까이 해 보세요.';
+        $('scanMsg').textContent = '이 휴대폰은 터치 초점을 지원하지 않습니다. 조금 떼었다가 천천히 가까이 해 보세요.';
       });
     });
 
@@ -1266,7 +1276,7 @@
       $('scanVideo').srcObject = null;
       const wasOpen = !$('scanner').classList.contains('hidden');
       $('scanner').classList.add('hidden');
-      // 재물조사: 카메라를 닫으면 진행 숫자·마지막 결과를 화면에 다시 그린다
+      // 기기 점검: 카메라를 닫으면 진행 숫자·마지막 결과를 화면에 다시 그린다
       if (wasOpen && invToken() && viewName === 'inv') showInv();
       repaint();
     }
@@ -1300,13 +1310,13 @@
       if (!scanStream) return;
       decodeFrame().then(text => {
         if (!scanStream) return;
-        // 관리자 PC 화면의 재물조사 QR을 화면 안 카메라로 찍은 경우
+        // 관리자 PC 화면의 기기 점검 QR을 화면 안 카메라로 찍은 경우
         const invT = text && invFromQr(text);
         if (invT) {
           closeScanner();
           save(K.inv, invT);
           deviceId = '';
-          flash('재물조사 모드로 바뀌었습니다.');
+          flash('기기 점검 모드입니다.');
           show('loading');
           return start();
         }
@@ -1355,7 +1365,7 @@
       try {
         // 이 휴대폰에 사용자ID가 없으면 서버에 묻지 않고 바로 이름 등록
         if (!userId()) { show('register'); $('name').focus(); return; }
-        if (invToken()) return startInv(); // 재물조사 모드(관리자 PC의 재물조사 QR을 찍은 휴대폰)
+        if (invToken()) return startInv(); // 기기 점검 모드(관리자 PC의 기기 점검 QR을 찍은 휴대폰)
         // 사용자 확인과 기기 정보를 한 번에(서버 왕복 1번)
         const r = await call('scan', userId(), deviceId);
         if (r.brand) setBrand(r.brand); // 예전 서버(다른 학교의 옛 사본)는 brand가 없다 → 기억한 이름 그대로
