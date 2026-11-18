@@ -287,7 +287,7 @@
       <button class="btn ghost" id="invEnd">이 휴대폰 점검 끝내기</button>
       <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 됩니다. 점검 종료는 PC에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-17b</p>
+    <p class="ver">화면 버전 11-18a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -852,7 +852,10 @@
             <div class="id">${esc(l.deviceId)} · ${esc(clsLabel(l.cls))}</div></div>
             <span class="badge ${l.overdue ? 'b-err' : 'b-acc'}">${l.due ? (l.overdue ? '예정일 지남 ' : '') + esc(pretty(l.due)) : '미정'}</span></li>`).join('')
           : '<li class="muted">빌린 기기가 없습니다.</li>';
-      } catch (e) { fail(e); }
+      } catch (e) {
+        $('mineList').innerHTML = '<li class="muted">목록을 불러오지 못했습니다.</li>';
+        fail(e);
+      }
     }
     $('mineBar').onclick = showMine;
     $('mineClose').onclick = () => {
@@ -1128,7 +1131,7 @@
     //    사용자가 고르는 '카메라 바꾸기'는 두지 않는다(2026-11-16: 잘못 고르면 그 렌즈가 기억돼 계속 흐림 — 자동으로 충분).
     // 초점 조절은 안드로이드 크롬·웨일처럼 되는 브라우저에서만. 아이폰 사파리는 웹에서 초점을 못 바꾼다.
     const CAM_KEY = 'pindex.camId'; // 휴대폰 카메라라 학교와 무관
-    let camTrack = null, camCaps = {}, camZoom = 0, lastFocusAt = 0, focusBackTimer = null, focusTipShown = false;
+    let camTrack = null, camCaps = {}, camZoom = 0, zoomCombo = true, lastFocusAt = 0, focusBackTimer = null, focusTipShown = false;
 
     function cameraConstraints(deviceId) {
       // 해상도를 안 정하면 640×480으로 켜지는 휴대폰이 많다. 라벨 QR은 작고 촘촘해서(약 2cm에 약 50칸) 그 화질로는 못 읽는다.
@@ -1195,16 +1198,24 @@
       camTrack = scanStream && scanStream.getVideoTracks()[0];
       camCaps = capsOf(camTrack);
       camZoom = camCaps.zoom && camCaps.zoom.max >= 1.5 ? Math.min(2, camCaps.zoom.max) : 0;
+      zoomCombo = true;
       if ((camCaps.focusMode || []).indexOf('continuous') >= 0) await applyCam({ focusMode: 'continuous' });
       else if (camZoom) await applyCam({});
     }
-    /** 카메라 설정 바꾸기. 줌을 늘 함께 넣는다(설정을 바꿀 때 빠진 값이 처음으로 돌아가는 브라우저가 있음). */
+    /**
+     * 카메라 설정 바꾸기. 줌을 늘 함께 넣는다(설정을 바꿀 때 빠진 값이 처음으로 돌아가는 브라우저가 있음).
+     * 함께 넣으면 안 받는 휴대폰은 한 번 알아낸 뒤(zoomCombo) 설정 → 줌을 따로 보낸다(11-05에 잘 되던 방식).
+     */
     async function applyCam(c) {
       if (!camTrack || !camTrack.applyConstraints) return false;
-      const withZoom = camZoom ? Object.assign({ zoom: camZoom }, c) : c;
-      try { await camTrack.applyConstraints({ advanced: [withZoom] }); return true; } catch (e) {}
-      if (!camZoom || !Object.keys(c).length) return false;
-      try { await camTrack.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; }
+      const apply = x => camTrack.applyConstraints({ advanced: [x] });
+      if (camZoom && zoomCombo) {
+        try { await apply(Object.assign({ zoom: camZoom }, c)); return true; } catch (e) { zoomCombo = false; }
+      }
+      let ok = !Object.keys(c).length;
+      if (!ok) { try { await apply(c); ok = true; } catch (e) {} }
+      if (camZoom) { try { await apply({ zoom: camZoom }); } catch (e) {} }
+      return ok;
     }
     function focusAbility() {
       const m = camCaps.focusMode || [];
