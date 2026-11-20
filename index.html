@@ -78,6 +78,9 @@
     .classes .chip { border-color: #C9D3FA; min-width: 56px; }
     .classes .chip.on { background: var(--accent); border-color: var(--accent); }
     .due { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .pickdate { margin: -4px 0 12px; }
+    .pickdate input { font: inherit; font-size: 16px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 10px;
+      background: var(--card); color: var(--ink); min-width: 180px; }
 
     .notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; }
     .n-warn { background: var(--warn-soft); color: var(--warn); }
@@ -287,7 +290,7 @@
       <button class="btn ghost" id="invEnd">이 휴대폰 점검 끝내기</button>
       <p class="muted" style="margin-top:12px">카메라를 켠 채 QR을 차례로 비추면 됩니다. 점검 종료는 PC에서 합니다.</p>
     </div>
-    <p class="ver">화면 버전 11-18a</p>
+    <p class="ver">화면 버전 11-20a</p>
   </div>
 
   <div class="dock hidden" id="dock">
@@ -349,6 +352,8 @@
     let brand = load(K.brand, '정보기기'), viewName = 'loading';
     const CART_TTL = 3 * 60 * 60 * 1000;
     const PERIODS = { '오늘': 0, '3일': 3, '1주': 7, '2주': 14, '미정': null };
+    // 기간 버튼 맨 끝 '날짜 지정': 달력에서 반납 예정일을 직접 고른다(2026-11-20). 고른 날은 sel.date
+    const CUSTOM = '날짜 지정';
     const VIEWS = ['loading', 'register', 'me', 'stopped', 'home', 'rent', 'cart', 'done', 'blocked', 'return', 'bundle', 'rdone', 'mine', 'inv'];
     // 반납 상태: 화면 표시 ↔ 시트 값(STATUS.RETURN)
     // '충전기 누락'은 2026-11-12 뺐다(태블릿은 충전함에 두고 기기만 빌려 감). 충전기를 잃어버렸으면 파손·고장에 증상으로 적는다.
@@ -372,7 +377,7 @@
     // ---------- 상태 ----------
     let ctx = null;       // getScanContext 결과
     let deviceId = '';
-    let sel = { group: '', cls: '', period: '' };
+    let sel = { group: '', cls: '', period: '', date: '' };
     let selOpen = false;    // 대여 화면: 학급·기간 고르기를 펼쳤는지(골라져 있으면 요약 한 줄 + [바꾸기])
     let meInfo = { name: '', cls: '' }; // 이 휴대폰 사용자(이름·우리 반)
     let meSel = { group: '', cls: '', none: false }, meBack = null; // 내 정보 화면
@@ -467,11 +472,30 @@
     function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     function pretty(s) { if (!s) return ''; const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]})`; }
 
-    /** 반납예정일: 기간만큼 더한 뒤 토·일·공휴일·휴업일이면 다음 등교일로. */
+    /** 날짜 지정에서 고를 수 있는 범위: 오늘 ~ 1년 뒤(서버 rent_도 같은 범위만 받는다). */
+    function pickRange() {
+      const now = new Date();
+      return { min: ymd(now), max: ymd(new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())) };
+    }
+    function validPick(s) {
+      const r = pickRange();
+      return /^\d{4}-\d{2}-\d{2}$/.test(s || '') && s >= r.min && s <= r.max;
+    }
+
+    /**
+     * 반납예정일: 기간만큼 더하거나(날짜 지정이면 고른 날) 토·일·공휴일이면 다음 평일로.
+     * need: 날짜 지정인데 아직 날짜를 안 골랐음(대여 버튼을 막는다).
+     */
     function dueFor(period) {
-      const n = PERIODS[period];
-      if (n == null) return { date: '', note: '' };
-      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
+      let d;
+      if (period === CUSTOM) {
+        if (!validPick(sel.date)) return { date: '', note: '', need: true };
+        d = new Date(sel.date + 'T00:00:00');
+      } else {
+        const n = PERIODS[period];
+        if (n == null) return { date: '', note: '' };
+        d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
+      }
       let note = '';
       for (let guard = 0; guard < 120; guard++) {
         const wk = d.getDay() === 0 || d.getDay() === 6;
@@ -548,9 +572,9 @@
     // 학급이 골라져 있으면(우리 반 또는 지난번 값) 요약 한 줄 + [바꾸기]만 보이고, 누르면 펼친다(2026-11-12)
     function selHtml() {
       const due = dueFor(sel.period);
-      const dueHtml = `<div class="due">${due.date ? `반납 예정 ${pretty(due.date)}` : '반납일 미정'}
+      const dueHtml = `<div class="due">${due.date ? `반납 예정 ${pretty(due.date)}` : due.need ? '반납 예정일을 골라 주세요' : '반납일 미정'}
           ${due.note ? `<span class="badge b-warn">${esc(due.note)}</span>` : ''}</div>`;
-      if (!selOpen && sel.cls) {
+      if (!selOpen && sel.cls && !due.need) {
         return `<div class="selsum"><div style="min-width:0">
             <div class="sumcls">${esc(clsLabel(sel.cls))}${sel.cls === meInfo.cls ? ' <span class="badge b-acc">우리 반</span>' : ''}</div>
             ${dueHtml}</div>
@@ -558,7 +582,9 @@
       }
       return `<h2>대여 학급</h2>${pickerHtml(sel, '')}
         <h2 style="margin-top:4px">대여 기간</h2>
-        <div class="chips">${Object.keys(PERIODS).map(p => `<button class="chip ${p === sel.period ? 'on' : ''}" data-period="${p}">${p}</button>`).join('')}</div>
+        <div class="chips">${Object.keys(PERIODS).concat([CUSTOM]).map(p => `<button class="chip ${p === sel.period ? 'on' : ''}" data-period="${p}">${p}</button>`).join('')}</div>
+        ${sel.period === CUSTOM ? (r => `<div class="pickdate"><input type="date" class="duepick" aria-label="반납 예정일"
+          min="${r.min}" max="${r.max}" value="${validPick(sel.date) ? sel.date : ''}"></div>`)(pickRange()) : ''}
         ${dueHtml}`;
     }
     function renderSel() {
@@ -582,6 +608,20 @@
       if (b.dataset.group) { sel.group = b.dataset.group; if (!classesOf(sel.group).some(c => c.value === sel.cls)) sel.cls = ''; }
       if (b.dataset.cls) sel.cls = b.dataset.cls;
       if (b.dataset.period) sel.period = b.dataset.period;
+      save(K.last, sel);
+      renderSel();
+      renderDock();
+      // 날짜 지정을 눌렀는데 아직 날짜가 없으면 달력을 바로 연다(누른 동작 안이라 브라우저가 허락함)
+      if (b.dataset.period === CUSTOM && !validPick(sel.date)) {
+        const inp = document.querySelector(`#v-${viewName} .duepick`);
+        if (inp) { try { inp.showPicker(); } catch (err) { inp.focus(); } }
+      }
+    });
+    // 달력에서 날짜를 고르면(지운 경우 포함) 반납 예정일을 다시 계산
+    document.addEventListener('change', e => {
+      const inp = e.target.closest('.sel .duepick');
+      if (!inp) return;
+      sel.date = validPick(inp.value) ? inp.value : '';
       save(K.last, sel);
       renderSel();
       renderDock();
@@ -655,10 +695,10 @@
     let dockMode = '';
     function renderDock() {
       const due = dueFor(sel.period);
-      const sum = sel.cls ? `${clsLabel(sel.cls)} · ${due.date ? pretty(due.date) + '까지' : '반납일 미정'}` : '반을 골라 주세요';
+      const sum = sel.cls ? `${clsLabel(sel.cls)} · ${due.date ? pretty(due.date) + '까지' : due.need ? '반납 예정일을 골라 주세요' : '반납일 미정'}` : '반을 골라 주세요';
       $('dock').classList.toggle('hidden', !dockMode);
       $('camBtn').classList.toggle('hidden', dockMode !== 'cart');
-      $('mainBtn').disabled = !sel.cls;
+      $('mainBtn').disabled = !sel.cls || !!due.need;
       if (dockMode === 'return') {
         $('dockSum').textContent = rStatus === '파손' ? '반납과 함께 수리 접수됩니다' : '';
         $('mainBtn').textContent = rStatus === '파손' ? '반납하고 수리 접수' : '반납하기';
@@ -684,7 +724,7 @@
         const n = getCart().length;
         $('dockSum').textContent = sum;
         $('mainBtn').textContent = `${n}대 대여하기`;
-        $('mainBtn').disabled = !sel.cls || n === 0;
+        $('mainBtn').disabled = !sel.cls || !!due.need || n === 0;
         $('subBtn').textContent = '모두 빼기';
         $('subBtn').classList.toggle('hidden', n === 0);
       }
@@ -1010,7 +1050,9 @@
     $('mainBtn').onclick = async () => {
       if (dockMode === 'return' || dockMode === 'bundle') return doReturn();
       const ids = dockMode === 'cart' ? getCart().map(d => d.id) : [ctx.device.id];
-      const due = dueFor(sel.period).date;
+      const dueInfo = dueFor(sel.period);
+      if (dueInfo.need) { $('err').textContent = '반납 예정일을 골라 주세요.'; return; }
+      const due = dueInfo.date;
       busy(ids.length > 1 ? `${ids.length}대 대여 처리 중…` : '대여 처리 중…');
       try {
         const r = await call('rentDevices', userId(), ids, sel.cls, due);
@@ -1390,12 +1432,16 @@
         ctx = r.ctx;
         if (!keepSel || !sel.period) {
           const last = load(K.last, {});
-          const period = last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주');
+          // 지난번에 고른 날짜는 그날이 지나기 전까지만 다시 쓴다(지나면 기본 기간으로)
+          const keepPick = last.period === CUSTOM && validPick(last.date);
+          const period = keepPick ? CUSTOM
+            : last.period in PERIODS ? last.period : (ctx.config.defaultPeriod in PERIODS ? ctx.config.defaultPeriod : '1주');
+          const date = keepPick ? last.date : '';
           if (validCls(meInfo.cls)) {
             // 우리 반이 있으면 QR을 찍을 때마다 우리 반으로(다른 반으로 바꿔 빌렸어도 다음엔 다시 우리 반)
-            sel = { group: groupOf(meInfo.cls), cls: meInfo.cls, period: period };
+            sel = { group: groupOf(meInfo.cls), cls: meInfo.cls, period: period, date: date };
           } else {
-            sel = { group: last.group && groups().includes(last.group) ? last.group : '', cls: '', period: period };
+            sel = { group: last.group && groups().includes(last.group) ? last.group : '', cls: '', period: period, date: date };
             if (sel.group && classesOf(sel.group).some(c => c.value === last.cls)) sel.cls = last.cls;
           }
           selOpen = false;
